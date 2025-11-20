@@ -1,8 +1,8 @@
-import { createSupabaseServer } from './supabase'
+import { supabaseServer } from './supabase-server'
 import { redirect } from 'next/navigation'
 
 export async function getSession() {
-  const supabase = createSupabaseServer()
+  const supabase = supabaseServer()
   const { data: { session }, error } = await supabase.auth.getSession()
 
   if (error) {
@@ -14,7 +14,7 @@ export async function getSession() {
 }
 
 export async function getUser() {
-  const supabase = createSupabaseServer()
+  const supabase = supabaseServer()
   const { data: { user }, error } = await supabase.auth.getUser()
 
   if (error) {
@@ -36,7 +36,7 @@ export async function requireAuth() {
 }
 
 export async function signOut() {
-  const supabase = createSupabaseServer()
+  const supabase = supabaseServer()
   await supabase.auth.signOut()
   redirect('/login')
 }

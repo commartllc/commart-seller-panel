@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createSupabaseServer } from '@/lib/supabase'
+import { supabaseServer } from '@/lib/supabase-server'
 import { triggerOrderWebhook } from '@/lib/n8n'
 
 export async function POST(request: NextRequest) {
-  const supabase = createSupabaseServer()
+  const supabase = supabaseServer()
   const { data: { session } } = await supabase.auth.getSession()
 
   if (!session) {

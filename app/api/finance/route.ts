@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server'
-import { createSupabaseServer } from '@/lib/supabase'
+import { supabaseServer } from '@/lib/supabase-server'
 
 export async function GET() {
-  const supabase = createSupabaseServer()
+  const supabase = supabaseServer()
   const { data: { session } } = await supabase.auth.getSession()
 
   if (!session) {

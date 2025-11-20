@@ -1,10 +1,10 @@
 import DashboardLayout from '@/components/DashboardLayout'
-import { createSupabaseServer } from '@/lib/supabase'
+import { supabaseServer } from '@/lib/supabase-server'
 import { redirect } from 'next/navigation'
 import { TrendingUp, Package, ShoppingCart, DollarSign } from 'lucide-react'
 
 async function getKPIs(sellerId: string) {
-  const supabase = createSupabaseServer()
+  const supabase = supabaseServer()
 
   // Fetch products count
   const { count: productsCount } = await supabase
@@ -38,7 +38,7 @@ async function getKPIs(sellerId: string) {
 }
 
 export default async function DashboardPage() {
-  const supabase = createSupabaseServer()
+  const supabase = supabaseServer()
   const { data: { session } } = await supabase.auth.getSession()
 
   if (!session) {

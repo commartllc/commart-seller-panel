@@ -2,9 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import DashboardLayout from '@/components/DashboardLayout'
-import { createBrowserClient } from '@/lib/supabase'
+import { supabaseBrowser, type Product } from '@/lib/supabase-browser'
 import { Plus, Edit, Trash2, X } from 'lucide-react'
-import type { Product } from '@/lib/supabase'
 
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([])
@@ -21,13 +20,11 @@ export default function ProductsPage() {
     status: 'active' as 'active' | 'inactive' | 'draft'
   })
 
-  const supabase = createBrowserClient()
-
   const fetchProducts = async () => {
-    const { data: { session } } = await supabase.auth.getSession()
+    const { data: { session } } = await supabaseBrowser.auth.getSession()
     if (!session) return
 
-    const { data } = await supabase
+    const { data } = await supabaseBrowser
       .from('products')
       .select('*')
       .eq('seller_id', session.user.id)
@@ -43,7 +40,7 @@ export default function ProductsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    const { data: { session } } = await supabase.auth.getSession()
+    const { data: { session } } = await supabaseBrowser.auth.getSession()
     if (!session) return
 
     const productData = {
@@ -58,7 +55,7 @@ export default function ProductsPage() {
     }
 
     if (editingProduct) {
-      await supabase
+      await supabaseBrowser
         .from('products')
         .update(productData)
         .eq('id', editingProduct.id)
@@ -70,7 +67,7 @@ export default function ProductsPage() {
         body: JSON.stringify({ event: 'updated', product: { ...productData, id: editingProduct.id } })
       })
     } else {
-      const { data } = await supabase
+      const { data } = await supabaseBrowser
         .from('products')
         .insert(productData)
         .select()
@@ -93,7 +90,7 @@ export default function ProductsPage() {
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this product?')) return
 
-    await supabase.from('products').delete().eq('id', id)
+    await supabaseBrowser.from('products').delete().eq('id', id)
 
     // Trigger n8n webhook
     await fetch('/api/products/webhook', {

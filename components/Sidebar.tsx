@@ -13,7 +13,7 @@ import {
   X
 } from 'lucide-react'
 import { useState } from 'react'
-import { createBrowserClient } from '@/lib/supabase'
+import { supabaseBrowser } from '@/lib/supabase-browser'
 import { useRouter } from 'next/navigation'
 
 const navigation = [
@@ -30,8 +30,7 @@ export default function Sidebar() {
   const router = useRouter()
 
   const handleSignOut = async () => {
-    const supabase = createBrowserClient()
-    await supabase.auth.signOut()
+    await supabaseBrowser.auth.signOut()
     router.push('/login')
   }
 

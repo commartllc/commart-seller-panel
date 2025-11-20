@@ -2,23 +2,21 @@
 
 import { useState, useEffect } from 'react'
 import DashboardLayout from '@/components/DashboardLayout'
-import { createBrowserClient } from '@/lib/supabase'
+import { supabaseBrowser, type StoreSettings } from '@/lib/supabase-browser'
 import { Save } from 'lucide-react'
-import type { StoreSettings } from '@/lib/supabase'
 
 export default function StorePage() {
   const [settings, setSettings] = useState<StoreSettings | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
-  const supabase = createBrowserClient()
 
   useEffect(() => {
     const fetchSettings = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
+      const { data: { session } } = await supabaseBrowser.auth.getSession()
       if (!session) return
 
-      const { data } = await supabase
+      const { data } = await supabaseBrowser
         .from('store_settings')
         .select('*')
         .eq('seller_id', session.user.id)
@@ -53,7 +51,7 @@ export default function StorePage() {
     setSaving(true)
     setMessage('')
 
-    const { data: { session } } = await supabase.auth.getSession()
+    const { data: { session } } = await supabaseBrowser.auth.getSession()
     if (!session) return
 
     const settingsData = {
@@ -67,12 +65,12 @@ export default function StorePage() {
     }
 
     if (settings.id) {
-      await supabase
+      await supabaseBrowser
         .from('store_settings')
         .update(settingsData)
         .eq('id', settings.id)
     } else {
-      await supabase
+      await supabaseBrowser
         .from('store_settings')
         .insert(settingsData)
     }

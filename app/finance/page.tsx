@@ -2,21 +2,19 @@
 
 import { useState, useEffect } from 'react'
 import DashboardLayout from '@/components/DashboardLayout'
-import { createBrowserClient } from '@/lib/supabase'
+import { supabaseBrowser, type Finance, type Transaction } from '@/lib/supabase-browser'
 import { DollarSign, TrendingUp, Clock, CheckCircle } from 'lucide-react'
-import type { Finance, Transaction } from '@/lib/supabase'
 
 export default function FinancePage() {
   const [finance, setFinance] = useState<Finance | null>(null)
   const [loading, setLoading] = useState(true)
-  const supabase = createBrowserClient()
 
   useEffect(() => {
     const fetchFinance = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
+      const { data: { session } } = await supabaseBrowser.auth.getSession()
       if (!session) return
 
-      const { data } = await supabase
+      const { data } = await supabaseBrowser
         .from('finance')
         .select('*')
         .eq('seller_id', session.user.id)

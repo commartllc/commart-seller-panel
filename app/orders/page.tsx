@@ -2,21 +2,19 @@
 
 import { useState, useEffect } from 'react'
 import DashboardLayout from '@/components/DashboardLayout'
-import { createBrowserClient } from '@/lib/supabase'
-import type { Order } from '@/lib/supabase'
+import { supabaseBrowser, type Order } from '@/lib/supabase-browser'
 
 const statusOptions = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'] as const
 
 export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
-  const supabase = createBrowserClient()
 
   const fetchOrders = async () => {
-    const { data: { session } } = await supabase.auth.getSession()
+    const { data: { session } } = await supabaseBrowser.auth.getSession()
     if (!session) return
 
-    const { data } = await supabase
+    const { data } = await supabaseBrowser
       .from('orders')
       .select('*')
       .eq('seller_id', session.user.id)
@@ -31,10 +29,10 @@ export default function OrdersPage() {
   }, [])
 
   const updateOrderStatus = async (orderId: string, newStatus: string) => {
-    const { data: { session } } = await supabase.auth.getSession()
+    const { data: { session } } = await supabaseBrowser.auth.getSession()
     if (!session) return
 
-    await supabase
+    await supabaseBrowser
       .from('orders')
       .update({ status: newStatus })
       .eq('id', orderId)
