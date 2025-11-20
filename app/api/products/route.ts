@@ -1,0 +1,50 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { createSupabaseServer } from '@/lib/supabase'
+
+export async function GET() {
+  const supabase = createSupabaseServer()
+  const { data: { session } } = await supabase.auth.getSession()
+
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const { data, error } = await supabase
+    .from('products')
+    .select('*')
+    .eq('seller_id', session.user.id)
+    .order('created_at', { ascending: false })
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+
+  return NextResponse.json(data)
+}
+
+export async function POST(request: NextRequest) {
+  const supabase = createSupabaseServer()
+  const { data: { session } } = await supabase.auth.getSession()
+
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const body = await request.json()
+  const productData = {
+    seller_id: session.user.id,
+    ...body
+  }
+
+  const { data, error } = await supabase
+    .from('products')
+    .insert(productData)
+    .select()
+    .single()
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+
+  return NextResponse.json(data)
+}
