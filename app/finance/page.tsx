@@ -1,11 +1,13 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import DashboardLayout from '@/components/DashboardLayout'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
+import Sidebar from '@/components/ui/Sidebar'
 import { supabaseBrowser, type Finance, type Transaction } from '@/lib/supabase-browser'
 import { DollarSign, TrendingUp, Clock, CheckCircle } from 'lucide-react'
 
 export default function FinancePage() {
+  const { t } = useLanguage()
   const [finance, setFinance] = useState<Finance | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -37,103 +39,116 @@ export default function FinancePage() {
     }
   }
 
-  if (loading) {
-    return (
-      <DashboardLayout>
-        <div className="text-center py-12 text-gray-500">Loading...</div>
-      </DashboardLayout>
-    )
+  const getTransactionTypeText = (type: string) => {
+    switch (type) {
+      case 'sale': return t.finance.sale
+      case 'payout': return t.finance.payout
+      case 'refund': return t.finance.refund
+      case 'fee': return t.finance.commission
+      default: return type
+    }
   }
 
   return (
-    <DashboardLayout>
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Finance</h1>
-          <p className="text-gray-600">Track your earnings and payouts</p>
-        </div>
-
-        {/* Finance Overview Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center">
-              <div className="bg-green-500 p-3 rounded-lg">
-                <DollarSign className="h-6 w-6 text-white" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">Total Earnings</p>
-                <p className="text-2xl font-semibold text-gray-900">
-                  ${(finance?.total_earnings || 0).toLocaleString()}
-                </p>
-              </div>
-            </div>
+    <div className="flex min-h-screen">
+      <Sidebar />
+      <main className="flex-1 ml-64 p-8">
+        <div className="max-w-7xl mx-auto space-y-6">
+          {/* Header */}
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">{t.finance.title}</h1>
           </div>
 
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center">
-              <div className="bg-yellow-500 p-3 rounded-lg">
-                <Clock className="h-6 w-6 text-white" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">Pending Payouts</p>
-                <p className="text-2xl font-semibold text-gray-900">
-                  ${(finance?.pending_payouts || 0).toLocaleString()}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center">
-              <div className="bg-blue-500 p-3 rounded-lg">
-                <CheckCircle className="h-6 w-6 text-white" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">Completed Payouts</p>
-                <p className="text-2xl font-semibold text-gray-900">
-                  ${(finance?.completed_payouts || 0).toLocaleString()}
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Recent Transactions */}
-        <div className="bg-white rounded-lg shadow">
-          <div className="px-6 py-4 border-b">
-            <h2 className="text-lg font-semibold text-gray-900">Recent Transactions</h2>
-          </div>
-          <div className="divide-y">
-            {finance?.transactions && finance.transactions.length > 0 ? (
-              finance.transactions.map((transaction: Transaction) => (
-                <div key={transaction.id} className="px-6 py-4 flex items-center justify-between">
+          {loading ? (
+            <div className="text-center py-12 text-gray-500">{t.common.loading}</div>
+          ) : (
+            <>
+              {/* Finance Overview Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
                   <div className="flex items-center">
-                    {getTransactionIcon(transaction.type)}
-                    <div className="ml-3">
-                      <p className="text-sm font-medium text-gray-900">{transaction.description}</p>
-                      <p className="text-sm text-gray-500">
-                        {new Date(transaction.created_at).toLocaleDateString()}
+                    <div className="bg-green-50 p-3 rounded-lg">
+                      <DollarSign className="h-6 w-6 text-green-500" />
+                    </div>
+                    <div className="ml-4">
+                      <p className="text-sm font-medium text-gray-500">{t.finance.totalEarnings}</p>
+                      <p className="text-2xl font-bold text-gray-900">
+                        {t.common.currency}{(finance?.total_earnings || 0).toLocaleString()}
                       </p>
                     </div>
                   </div>
-                  <span className={`text-sm font-medium ${
-                    transaction.type === 'sale' ? 'text-green-600' :
-                    transaction.type === 'refund' || transaction.type === 'fee' ? 'text-red-600' :
-                    'text-blue-600'
-                  }`}>
-                    {transaction.type === 'refund' || transaction.type === 'fee' ? '-' : '+'}
-                    ${transaction.amount.toFixed(2)}
-                  </span>
                 </div>
-              ))
-            ) : (
-              <div className="px-6 py-8 text-center text-gray-500">
-                No transactions yet
+
+                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                  <div className="flex items-center">
+                    <div className="bg-yellow-50 p-3 rounded-lg">
+                      <Clock className="h-6 w-6 text-yellow-500" />
+                    </div>
+                    <div className="ml-4">
+                      <p className="text-sm font-medium text-gray-500">{t.finance.pendingPayout}</p>
+                      <p className="text-2xl font-bold text-gray-900">
+                        {t.common.currency}{(finance?.pending_payouts || 0).toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                  <div className="flex items-center">
+                    <div className="bg-blue-50 p-3 rounded-lg">
+                      <CheckCircle className="h-6 w-6 text-blue-500" />
+                    </div>
+                    <div className="ml-4">
+                      <p className="text-sm font-medium text-gray-500">{t.finance.lastPayout}</p>
+                      <p className="text-2xl font-bold text-gray-900">
+                        {t.common.currency}{(finance?.completed_payouts || 0).toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </div>
-            )}
-          </div>
+
+              {/* Transactions */}
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100">
+                <div className="px-6 py-4 border-b border-gray-100">
+                  <h2 className="text-lg font-semibold text-gray-900">{t.finance.transactions}</h2>
+                </div>
+                <div className="divide-y divide-gray-100">
+                  {finance?.transactions && finance.transactions.length > 0 ? (
+                    finance.transactions.map((transaction: Transaction) => (
+                      <div key={transaction.id} className="px-6 py-4 flex items-center justify-between hover:bg-gray-50">
+                        <div className="flex items-center">
+                          {getTransactionIcon(transaction.type)}
+                          <div className="ml-3">
+                            <p className="text-sm font-medium text-gray-900">
+                              {transaction.description || getTransactionTypeText(transaction.type)}
+                            </p>
+                            <p className="text-sm text-gray-500">
+                              {new Date(transaction.created_at).toLocaleDateString()}
+                            </p>
+                          </div>
+                        </div>
+                        <span className={`text-sm font-semibold ${
+                          transaction.type === 'sale' ? 'text-green-600' :
+                          transaction.type === 'refund' || transaction.type === 'fee' ? 'text-red-600' :
+                          'text-blue-600'
+                        }`}>
+                          {transaction.type === 'refund' || transaction.type === 'fee' ? '-' : '+'}
+                          {t.common.currency}{transaction.amount.toFixed(2)}
+                        </span>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="px-6 py-8 text-center text-gray-500">
+                      {t.finance.noTransactions}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
         </div>
-      </div>
-    </DashboardLayout>
+      </main>
+    </div>
   )
 }
