@@ -83,23 +83,43 @@ export async function PUT(
       console.error('Product update error:', updateError)
       return Response.json({ success: false, error: updateError.message }, { status: 500 })
     }
+
+    // Also update quantity field to sync with total_stock
+    if (updateData.total_stock !== undefined) {
+      await supabase
+        .from('master_products')
+        .update({ quantity: updateData.total_stock })
+        .eq('id', params.id)
+        .eq('seller_id', user.id)
+    }
   }
 
   // Update variants if provided
   if (body.variants && Array.isArray(body.variants)) {
+    let totalVariantStock = 0
+
     for (const variant of body.variants) {
       if (variant.variant_id && variant.new_stock !== undefined) {
         const { error: variantError } = await supabase
           .from('product_variants')
-          .update({ stock: variant.new_stock })
+          .update({ stock: variant.new_stock, quantity: variant.new_stock })
           .eq('id', variant.variant_id)
           .eq('product_id', params.id)
 
         if (variantError) {
           console.error('Variant update error:', variantError)
-          // Continue with other variants even if one fails
         }
+        totalVariantStock += variant.new_stock
       }
+    }
+
+    // Update master_products.quantity with sum of variant stocks
+    if (body.variants.length > 0) {
+      await supabase
+        .from('master_products')
+        .update({ quantity: totalVariantStock, total_stock: totalVariantStock })
+        .eq('id', params.id)
+        .eq('seller_id', user.id)
     }
   }
 

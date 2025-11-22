@@ -26,7 +26,8 @@ export async function GET() {
     status: item.status,
     date: item.created_at,
     buyer: item.customer_name ?? item.customer_email,
-    currency: item.currency || 'USD'
+    currency: item.currency || 'USD',
+    channel: item.channel || item.source_channel || 'Community'
   }))
 
   return Response.json({ success: true, data: normalized })

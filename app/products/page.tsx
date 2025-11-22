@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import Sidebar from '@/components/ui/Sidebar'
-import { Plus, Edit, Trash2, X, Search, ChevronDown, ChevronUp } from 'lucide-react'
+import { Plus, Edit, Trash2, X, Search, ChevronDown, ChevronUp, Eye } from 'lucide-react'
+import AnnouncementBar from '@/components/ui/AnnouncementBar'
 
 interface ProductVariant {
   id: string
@@ -23,6 +24,7 @@ interface Product {
   stock: number
   created_at: string
   currency?: string
+  sku?: string
   variants?: ProductVariant[]
 }
 
@@ -41,6 +43,8 @@ export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
+  const [showDetailModal, setShowDetailModal] = useState(false)
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [showVariants, setShowVariants] = useState(false)
@@ -77,18 +81,29 @@ export default function ProductsPage() {
     setTimeout(() => setToast(null), 3000)
   }
 
+  const handleViewProduct = async (product: Product) => {
+    try {
+      const res = await fetch(`/api/products/${product.id}`)
+      const json = await res.json()
+      setSelectedProduct(json.data || product)
+      setShowDetailModal(true)
+    } catch (error) {
+      console.error('Failed to fetch product details:', error)
+      setSelectedProduct(product)
+      setShowDetailModal(true)
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
     try {
       if (editingProduct) {
-        // Build update payload
-        const updatePayload: any = {
+        const updatePayload: Record<string, unknown> = {
           new_stock: parseInt(formData.stock),
           new_price: parseFloat(formData.price)
         }
 
-        // Add variant updates if any
         if (editingProduct.variants && editingProduct.variants.length > 0) {
           updatePayload.variants = editingProduct.variants.map(v => ({
             variant_id: v.id,
@@ -106,7 +121,6 @@ export default function ProductsPage() {
           showToast(t.products?.updateSuccess ?? 'Product updated successfully')
         }
       } else {
-        // Create new product
         const productData = {
           title: formData.title,
           description: formData.description,
@@ -146,7 +160,6 @@ export default function ProductsPage() {
 
   const handleEdit = async (product: Product) => {
     try {
-      // Fetch full product details including variants
       const res = await fetch(`/api/products/${product.id}`)
       const json = await res.json()
       const fullProduct = json.data || product
@@ -160,7 +173,6 @@ export default function ProductsPage() {
         image_url: fullProduct.image_url || fullProduct.featured_image || fullProduct.image || ''
       })
 
-      // Initialize variant stocks
       if (fullProduct.variants && fullProduct.variants.length > 0) {
         const stocks: Record<string, string> = {}
         fullProduct.variants.forEach((v: ProductVariant) => {
@@ -190,9 +202,11 @@ export default function ProductsPage() {
   )
 
   return (
-    <div className="flex min-h-screen">
-      <Sidebar />
-      <main className="flex-1 p-8 pt-16 lg:pt-8">
+    <div className="min-h-screen">
+      <AnnouncementBar message="🎉 Welcome to Commart Seller Panel — New updates are live!" />
+      <div className="flex">
+        <Sidebar />
+        <main className="flex-1 p-4 sm:p-8 pt-16 lg:pt-8">
         <div className="max-w-7xl mx-auto space-y-6">
           {/* Toast */}
           {toast && (
@@ -202,7 +216,7 @@ export default function ProductsPage() {
           )}
 
           {/* Header */}
-          <div className="flex justify-between items-center">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <h1 className="text-2xl font-bold text-gray-900">{t.products.title}</h1>
             <button
               onClick={() => {
@@ -212,7 +226,7 @@ export default function ProductsPage() {
                 setVariantStocks({})
                 setShowModal(true)
               }}
-              className="flex items-center px-4 py-2 bg-coral-500 text-white rounded-md hover:bg-coral-600 transition-colors"
+              className="flex items-center px-4 py-2 bg-coral-500 text-white rounded hover:bg-coral-600 transition-colors"
             >
               <Plus className="h-5 w-5 mr-2" />
               {t.products.addProduct}
@@ -227,42 +241,46 @@ export default function ProductsPage() {
               placeholder={t.products.searchProducts}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-coral-500 focus:border-transparent"
+              className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-coral-500 focus:border-transparent"
             />
           </div>
 
-          {/* Products Table */}
-          <div className="bg-white rounded-md shadow-sm border border-gray-100 overflow-hidden">
+          {/* Products - Desktop Table */}
+          <div className="hidden sm:block bg-white rounded-md shadow-sm border border-gray-100 overflow-hidden">
             {loading ? (
               <div className="p-6 text-center text-gray-500">{t.common.loading}</div>
             ) : filteredProducts.length === 0 ? (
               <div className="p-6 text-center text-gray-500">{t.products.noProducts}</div>
             ) : (
-              <div className="overflow-x-auto max-h-[70vh]">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50 sticky top-0 z-10">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky left-0 bg-gray-50 z-20 min-w-[200px]">{t.products.productName}</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[100px]">{t.products.price}</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[80px]">{t.products.stock}</th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[100px]"></th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[45%]">{t.products.productName}</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t.products.price}</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t.products.stock}</th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {filteredProducts.map((product) => (
                       <tr key={product.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap sticky left-0 bg-white z-10">
+                        <td className="px-6 py-4">
                           <div className="flex items-center">
                             {(product.image_url || product.image) && (
                               <img
                                 src={product.image_url || product.image}
                                 alt={product.title}
-                                className="h-10 w-10 rounded-md object-cover mr-3 flex-shrink-0"
+                                className="h-10 w-10 rounded object-cover mr-3 flex-shrink-0"
                               />
                             )}
-                            <div className="min-w-0">
-                              <div className="text-sm font-medium text-gray-900 truncate max-w-[150px]">{product.title}</div>
-                            </div>
+                            <button
+                              onClick={() => handleViewProduct(product)}
+                              className="text-sm font-medium text-gray-900 hover:text-coral-600 text-left truncate max-w-[300px]"
+                              title={product.title}
+                            >
+                              {product.title}
+                            </button>
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
@@ -273,8 +291,15 @@ export default function ProductsPage() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                           <button
+                            onClick={() => handleViewProduct(product)}
+                            className="text-gray-500 hover:text-gray-700 mr-2"
+                            title="View"
+                          >
+                            <Eye className="h-5 w-5" />
+                          </button>
+                          <button
                             onClick={() => handleEdit(product)}
-                            className="text-coral-600 hover:text-coral-900 mr-3"
+                            className="text-coral-600 hover:text-coral-900 mr-2"
                           >
                             <Edit className="h-5 w-5" />
                           </button>
@@ -293,9 +318,131 @@ export default function ProductsPage() {
             )}
           </div>
 
-          {/* Modal */}
+          {/* Products - Mobile Cards */}
+          <div className="sm:hidden space-y-4">
+            {loading ? (
+              <div className="p-6 text-center text-gray-500 bg-white rounded-md">{t.common.loading}</div>
+            ) : filteredProducts.length === 0 ? (
+              <div className="p-6 text-center text-gray-500 bg-white rounded-md">{t.products.noProducts}</div>
+            ) : (
+              filteredProducts.map((product) => (
+                <div key={product.id} className="bg-white rounded-md shadow-sm border border-gray-100 p-4">
+                  <div className="flex items-start gap-3">
+                    {(product.image_url || product.image) && (
+                      <img
+                        src={product.image_url || product.image}
+                        alt={product.title}
+                        className="h-16 w-16 rounded object-cover flex-shrink-0"
+                      />
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <button
+                        onClick={() => handleViewProduct(product)}
+                        className="text-sm font-medium text-gray-900 hover:text-coral-600 text-left block w-full"
+                      >
+                        {product.title}
+                      </button>
+                      <p className="text-sm font-medium text-coral-600 mt-1">
+                        {formatCurrency(product.price || 0, product.currency)}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Stock: {product.stock ?? 0}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-2 mt-3 pt-3 border-t border-gray-100">
+                    <button
+                      onClick={() => handleViewProduct(product)}
+                      className="p-2 text-gray-500 hover:text-gray-700"
+                    >
+                      <Eye className="h-5 w-5" />
+                    </button>
+                    <button
+                      onClick={() => handleEdit(product)}
+                      className="p-2 text-coral-600 hover:text-coral-900"
+                    >
+                      <Edit className="h-5 w-5" />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(product.id)}
+                      className="p-2 text-red-600 hover:text-red-900"
+                    >
+                      <Trash2 className="h-5 w-5" />
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* Product Detail Modal */}
+          {showDetailModal && selectedProduct && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-md p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-lg font-semibold">Product Details</h2>
+                  <button onClick={() => setShowDetailModal(false)}>
+                    <X className="h-5 w-5 text-gray-500" />
+                  </button>
+                </div>
+
+                {(selectedProduct.image_url || selectedProduct.image) && (
+                  <img
+                    src={selectedProduct.image_url || selectedProduct.image}
+                    alt={selectedProduct.title}
+                    className="w-full h-48 object-cover rounded-md mb-4"
+                  />
+                )}
+
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-xs text-gray-500 uppercase">Product Name</label>
+                    <p className="text-sm font-medium text-gray-900">{selectedProduct.title}</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-xs text-gray-500 uppercase">Price</label>
+                      <p className="text-sm font-medium text-gray-900">
+                        {formatCurrency(selectedProduct.price || 0, selectedProduct.currency)}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-500 uppercase">Stock</label>
+                      <p className="text-sm font-medium text-gray-900">{selectedProduct.stock ?? 0}</p>
+                    </div>
+                  </div>
+                  {selectedProduct.sku && (
+                    <div>
+                      <label className="text-xs text-gray-500 uppercase">SKU</label>
+                      <p className="text-sm font-medium text-gray-900">{selectedProduct.sku}</p>
+                    </div>
+                  )}
+                  <div>
+                    <label className="text-xs text-gray-500 uppercase">Created</label>
+                    <p className="text-sm text-gray-900">
+                      {new Date(selectedProduct.created_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex justify-end mt-6">
+                  <button
+                    onClick={() => {
+                      setShowDetailModal(false)
+                      handleEdit(selectedProduct)
+                    }}
+                    className="px-4 py-2 text-sm font-medium text-white bg-coral-500 rounded hover:bg-coral-600"
+                  >
+                    Edit Product
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Edit/Add Modal */}
           {showModal && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
               <div className="bg-white rounded-md p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
                 <div className="flex justify-between items-center mb-4">
                   <h2 className="text-lg font-semibold">
@@ -306,7 +453,6 @@ export default function ProductsPage() {
                   </button>
                 </div>
                 <form onSubmit={handleSubmit} className="space-y-4">
-                  {/* Title - disabled when editing */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700">{t.products.productName}</label>
                     <input
@@ -315,7 +461,7 @@ export default function ProductsPage() {
                       disabled={!!editingProduct}
                       value={formData.title}
                       onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                      className={`mt-1 block w-full rounded-md border-gray-200 shadow-sm focus:border-coral-500 focus:ring-coral-500 sm:text-sm border p-2 ${editingProduct ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                      className={`mt-1 block w-full rounded border-gray-200 shadow-sm focus:border-coral-500 focus:ring-coral-500 sm:text-sm border p-2 ${editingProduct ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                     />
                     {editingProduct && (
                       <p className="text-xs text-gray-500 mt-1">Product name cannot be changed</p>
@@ -328,7 +474,7 @@ export default function ProductsPage() {
                       <textarea
                         value={formData.description}
                         onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                        className="mt-1 block w-full rounded-md border-gray-200 shadow-sm focus:border-coral-500 focus:ring-coral-500 sm:text-sm border p-2"
+                        className="mt-1 block w-full rounded border-gray-200 shadow-sm focus:border-coral-500 focus:ring-coral-500 sm:text-sm border p-2"
                         rows={3}
                       />
                     </div>
@@ -343,7 +489,7 @@ export default function ProductsPage() {
                         required
                         value={formData.price}
                         onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                        className="mt-1 block w-full rounded-md border-gray-200 shadow-sm focus:border-coral-500 focus:ring-coral-500 sm:text-sm border p-2"
+                        className="mt-1 block w-full rounded border-gray-200 shadow-sm focus:border-coral-500 focus:ring-coral-500 sm:text-sm border p-2"
                       />
                     </div>
                     <div>
@@ -353,7 +499,7 @@ export default function ProductsPage() {
                         required
                         value={formData.stock}
                         onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
-                        className="mt-1 block w-full rounded-md border-gray-200 shadow-sm focus:border-coral-500 focus:ring-coral-500 sm:text-sm border p-2"
+                        className="mt-1 block w-full rounded border-gray-200 shadow-sm focus:border-coral-500 focus:ring-coral-500 sm:text-sm border p-2"
                       />
                     </div>
                   </div>
@@ -365,14 +511,13 @@ export default function ProductsPage() {
                         type="url"
                         value={formData.image_url}
                         onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
-                        className="mt-1 block w-full rounded-md border-gray-200 shadow-sm focus:border-coral-500 focus:ring-coral-500 sm:text-sm border p-2"
+                        className="mt-1 block w-full rounded border-gray-200 shadow-sm focus:border-coral-500 focus:ring-coral-500 sm:text-sm border p-2"
                       />
                     </div>
                   )}
 
-                  {/* Variant Stock Management */}
                   {editingProduct && editingProduct.variants && editingProduct.variants.length > 0 && (
-                    <div className="border border-gray-200 rounded-md">
+                    <div className="border border-gray-200 rounded">
                       <button
                         type="button"
                         onClick={() => setShowVariants(!showVariants)}
@@ -393,7 +538,7 @@ export default function ProductsPage() {
                                   ...variantStocks,
                                   [variant.id]: e.target.value
                                 })}
-                                className="w-24 rounded-md border-gray-200 shadow-sm focus:border-coral-500 focus:ring-coral-500 sm:text-sm border p-2"
+                                className="w-24 rounded border-gray-200 shadow-sm focus:border-coral-500 focus:ring-coral-500 sm:text-sm border p-2"
                               />
                             </div>
                           ))}
@@ -406,13 +551,13 @@ export default function ProductsPage() {
                     <button
                       type="button"
                       onClick={() => setShowModal(false)}
-                      className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+                      className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded hover:bg-gray-200"
                     >
                       {t.common.cancel}
                     </button>
                     <button
                       type="submit"
-                      className="px-4 py-2 text-sm font-medium text-white bg-coral-500 rounded-md hover:bg-coral-600"
+                      className="px-4 py-2 text-sm font-medium text-white bg-coral-500 rounded hover:bg-coral-600"
                     >
                       {t.common.save}
                     </button>
@@ -423,6 +568,7 @@ export default function ProductsPage() {
           )}
         </div>
       </main>
+      </div>
     </div>
   )
 }
