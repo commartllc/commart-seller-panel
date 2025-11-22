@@ -30,7 +30,17 @@ export async function GET() {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 })
   }
 
-  return NextResponse.json({ success: true, data })
+  // Normalize data for UI
+  const normalized = (data || []).map((item: any) => ({
+    id: item.id,
+    title: item.title,
+    price: item.base_price ?? item.price,
+    image: item.featured_image ?? (Array.isArray(item.images) ? item.images[0] : null),
+    created: item.created_at,
+    stock: item.total_stock ?? item.available_stock
+  }))
+
+  return NextResponse.json({ success: true, data: normalized })
 }
 
 export async function POST(request: NextRequest) {

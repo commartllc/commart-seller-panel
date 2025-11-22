@@ -35,13 +35,21 @@ export async function GET() {
   const pending = data?.reduce((sum, p) => p.status === 'pending' ? sum + Number(p.amount) : sum, 0) || 0
   const paid = data?.reduce((sum, p) => p.status === 'paid' ? sum + Number(p.amount) : sum, 0) || 0
 
+  // Normalize history data for UI
+  const history = (data || []).map((item: any) => ({
+    id: item.id,
+    amount: item.amount,
+    status: item.status,
+    date: item.payout_date ?? item.created_at
+  }))
+
   return NextResponse.json({
     success: true,
     data: {
       total_revenue,
       pending,
       paid,
-      history: data || []
+      history
     }
   })
 }

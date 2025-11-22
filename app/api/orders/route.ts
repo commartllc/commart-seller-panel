@@ -30,5 +30,14 @@ export async function GET() {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 })
   }
 
-  return NextResponse.json({ success: true, data })
+  // Normalize data for UI
+  const normalized = (data || []).map((item: any) => ({
+    id: item.id,
+    total: item.total_amount,
+    status: item.status,
+    date: item.created_at,
+    buyer: item.customer_name ?? item.customer_email
+  }))
+
+  return NextResponse.json({ success: true, data: normalized })
 }
