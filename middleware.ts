@@ -31,6 +31,9 @@ export async function middleware(request: NextRequest) {
             name,
             value,
             ...options,
+            domain: process.env.NODE_ENV === 'production' ? '.comm.art' : undefined,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
           })
         },
         remove(name: string, options: CookieOptions) {
@@ -48,6 +51,8 @@ export async function middleware(request: NextRequest) {
             name,
             value: '',
             ...options,
+            maxAge: 0,
+            domain: process.env.NODE_ENV === 'production' ? '.comm.art' : undefined,
           })
         },
       },
@@ -56,19 +61,18 @@ export async function middleware(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser()
 
-  // Protected routes - redirect to login if not authenticated
-  const protectedPaths = ['/', '/products', '/orders', '/finance', '/store', '/language']
-  const isProtectedPath = protectedPaths.some(path =>
-    request.nextUrl.pathname === path || request.nextUrl.pathname.startsWith(path + '/')
-  )
+  // Public routes that don't require authentication
+  const publicPaths = ['/login', '/auth/callback', '/auth/confirm']
+  const isPublicPath = publicPaths.some(path => request.nextUrl.pathname.startsWith(path))
 
-  if (isProtectedPath && !user) {
+  // Redirect unauthenticated users to login
+  if (!user && !isPublicPath) {
     const redirectUrl = new URL('/login', request.url)
     return NextResponse.redirect(redirectUrl)
   }
 
-  // Redirect to dashboard if already logged in and trying to access login
-  if (request.nextUrl.pathname === '/login' && user) {
+  // Redirect authenticated users away from login page
+  if (user && request.nextUrl.pathname === '/login') {
     const redirectUrl = new URL('/', request.url)
     return NextResponse.redirect(redirectUrl)
   }
@@ -78,12 +82,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/',
-    '/products/:path*',
-    '/orders/:path*',
-    '/finance/:path*',
-    '/store/:path*',
-    '/language/:path*',
-    '/login',
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }

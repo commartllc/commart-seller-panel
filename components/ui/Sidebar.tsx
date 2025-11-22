@@ -3,8 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
-import { supabaseBrowser } from '@/lib/supabase-browser'
-import { useRouter } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
 import {
   LayoutDashboard,
   Package,
@@ -17,12 +16,12 @@ import {
 
 export default function Sidebar() {
   const pathname = usePathname()
-  const router = useRouter()
   const { t } = useLanguage()
+  const supabase = createClient()
 
   const handleLogout = async () => {
-    await supabaseBrowser.auth.signOut()
-    router.push('/login')
+    await supabase.auth.signOut()
+    window.location.href = '/login'
   }
 
   const navItems = [
