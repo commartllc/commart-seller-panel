@@ -3,10 +3,23 @@
 import { useState, useEffect } from 'react'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import Sidebar from '@/components/ui/Sidebar'
-import { supabaseBrowser, type Order } from '@/lib/supabase-browser'
 import { Search, Filter } from 'lucide-react'
 
-const statusOptions = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'] as const
+interface Order {
+  id: string
+  user_id: string
+  buyer_email: string
+  product_id: string
+  quantity: number
+  total: number
+  status: string
+  created_at: string
+  product?: {
+    title: string
+    price: number
+    image_url: string
+  }
+}
 
 export default function OrdersPage() {
   const { t } = useLanguage()
@@ -16,44 +29,22 @@ export default function OrdersPage() {
   const [statusFilter, setStatusFilter] = useState<string>('all')
 
   const fetchOrders = async () => {
-    const { data: { session } } = await supabaseBrowser.auth.getSession()
-    if (!session) return
-
-    const { data } = await supabaseBrowser
-      .from('orders')
-      .select('*')
-      .eq('seller_id', session.user.id)
-      .order('created_at', { ascending: false })
-
-    setOrders(data || [])
-    setLoading(false)
+    try {
+      const res = await fetch('/api/orders')
+      const json = await res.json()
+      if (json.success) {
+        setOrders(json.data || [])
+      }
+    } catch (error) {
+      console.error('Failed to fetch orders:', error)
+    } finally {
+      setLoading(false)
+    }
   }
 
   useEffect(() => {
     fetchOrders()
   }, [])
-
-  const updateOrderStatus = async (orderId: string, newStatus: string) => {
-    const { data: { session } } = await supabaseBrowser.auth.getSession()
-    if (!session) return
-
-    await supabaseBrowser
-      .from('orders')
-      .update({ status: newStatus })
-      .eq('id', orderId)
-
-    // Trigger n8n webhook
-    await fetch('/api/orders/webhook', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        event: 'status_updated',
-        order: { id: orderId, status: newStatus }
-      })
-    })
-
-    fetchOrders()
-  }
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -78,7 +69,7 @@ export default function OrdersPage() {
   }
 
   const filteredOrders = orders.filter(order => {
-    const matchesSearch = order.customer_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    const matchesSearch = order.buyer_email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       order.id.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesStatus = statusFilter === 'all' || order.status === statusFilter
     return matchesSearch && matchesStatus
@@ -139,7 +130,6 @@ export default function OrdersPage() {
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t.orders.total}</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t.orders.date}</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t.orders.status}</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t.orders.updateStatus}</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
@@ -149,8 +139,10 @@ export default function OrdersPage() {
                           #{order.id.slice(0, 8)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900">{order.customer_name}</div>
-                          <div className="text-sm text-gray-500">{order.customer_email}</div>
+                          <div className="text-sm text-gray-900">{order.buyer_email}</div>
+                          {order.product && (
+                            <div className="text-sm text-gray-500">{order.product.title}</div>
+                          )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                           {t.common.currency}{order.total.toFixed(2)}
@@ -162,19 +154,6 @@ export default function OrdersPage() {
                           <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(order.status)}`}>
                             {getStatusText(order.status)}
                           </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          <select
-                            value={order.status}
-                            onChange={(e) => updateOrderStatus(order.id, e.target.value)}
-                            className="rounded-lg border-gray-200 shadow-sm focus:border-coral-500 focus:ring-coral-500 text-sm"
-                          >
-                            {statusOptions.map((status) => (
-                              <option key={status} value={status}>
-                                {getStatusText(status)}
-                              </option>
-                            ))}
-                          </select>
                         </td>
                       </tr>
                     ))}

@@ -10,11 +10,8 @@ export async function GET() {
   }
 
   const { data, error } = await supabase
-    .from('orders')
-    .select(`
-      *,
-      product:products(title, price, image_url)
-    `)
+    .from('payouts')
+    .select('*')
     .eq('user_id', user.id)
     .order('created_at', { ascending: false })
 
@@ -22,5 +19,17 @@ export async function GET() {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 })
   }
 
-  return NextResponse.json({ success: true, data })
+  // Calculate totals
+  const totalEarnings = data?.reduce((sum, p) => p.status === 'completed' ? sum + Number(p.amount) : sum, 0) || 0
+  const pendingPayouts = data?.reduce((sum, p) => p.status === 'pending' ? sum + Number(p.amount) : sum, 0) || 0
+
+  return NextResponse.json({
+    success: true,
+    data,
+    summary: {
+      totalEarnings,
+      pendingPayouts,
+      completedPayouts: totalEarnings
+    }
+  })
 }

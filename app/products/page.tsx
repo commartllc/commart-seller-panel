@@ -3,8 +3,18 @@
 import { useState, useEffect } from 'react'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import Sidebar from '@/components/ui/Sidebar'
-import { supabaseBrowser, type Product } from '@/lib/supabase-browser'
 import { Plus, Edit, Trash2, X, Search } from 'lucide-react'
+
+interface Product {
+  id: string
+  user_id: string
+  title: string
+  description: string
+  price: number
+  image_url: string
+  stock: number
+  created_at: string
+}
 
 export default function ProductsPage() {
   const { t } = useLanguage()
@@ -14,27 +24,25 @@ export default function ProductsPage() {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [formData, setFormData] = useState({
-    name: '',
+    title: '',
     description: '',
     price: '',
     stock: '',
-    category: '',
-    image_url: '',
-    status: 'active' as 'active' | 'inactive' | 'draft'
+    image_url: ''
   })
 
   const fetchProducts = async () => {
-    const { data: { session } } = await supabaseBrowser.auth.getSession()
-    if (!session) return
-
-    const { data } = await supabaseBrowser
-      .from('products')
-      .select('*')
-      .eq('seller_id', session.user.id)
-      .order('created_at', { ascending: false })
-
-    setProducts(data || [])
-    setLoading(false)
+    try {
+      const res = await fetch('/api/products')
+      const json = await res.json()
+      if (json.success) {
+        setProducts(json.data || [])
+      }
+    } catch (error) {
+      console.error('Failed to fetch products:', error)
+    } finally {
+      setLoading(false)
+    }
   }
 
   useEffect(() => {
@@ -43,113 +51,74 @@ export default function ProductsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    const { data: { session } } = await supabaseBrowser.auth.getSession()
-    if (!session) return
 
     const productData = {
-      seller_id: session.user.id,
-      name: formData.name,
+      title: formData.title,
       description: formData.description,
       price: parseFloat(formData.price),
       stock: parseInt(formData.stock),
-      category: formData.category,
-      image_url: formData.image_url,
-      status: formData.status
+      image_url: formData.image_url
     }
 
-    if (editingProduct) {
-      await supabaseBrowser
-        .from('products')
-        .update(productData)
-        .eq('id', editingProduct.id)
+    try {
+      if (editingProduct) {
+        await fetch(`/api/products/${editingProduct.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(productData)
+        })
+      } else {
+        await fetch('/api/products', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(productData)
+        })
+      }
 
-      // Trigger n8n webhook
-      await fetch('/api/products/webhook', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ event: 'updated', product: { ...productData, id: editingProduct.id } })
-      })
-    } else {
-      const { data } = await supabaseBrowser
-        .from('products')
-        .insert(productData)
-        .select()
-        .single()
-
-      // Trigger n8n webhook
-      await fetch('/api/products/webhook', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ event: 'created', product: data })
-      })
+      setShowModal(false)
+      setEditingProduct(null)
+      resetForm()
+      fetchProducts()
+    } catch (error) {
+      console.error('Failed to save product:', error)
     }
-
-    setShowModal(false)
-    setEditingProduct(null)
-    resetForm()
-    fetchProducts()
   }
 
   const handleDelete = async (id: string) => {
     if (!confirm(t.products.confirmDelete)) return
 
-    await supabaseBrowser.from('products').delete().eq('id', id)
-
-    // Trigger n8n webhook
-    await fetch('/api/products/webhook', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ event: 'deleted', product: { id } })
-    })
-
-    fetchProducts()
+    try {
+      await fetch(`/api/products/${id}`, { method: 'DELETE' })
+      fetchProducts()
+    } catch (error) {
+      console.error('Failed to delete product:', error)
+    }
   }
 
   const handleEdit = (product: Product) => {
     setEditingProduct(product)
     setFormData({
-      name: product.name,
+      title: product.title,
       description: product.description,
       price: product.price.toString(),
       stock: product.stock.toString(),
-      category: product.category,
-      image_url: product.image_url,
-      status: product.status
+      image_url: product.image_url || ''
     })
     setShowModal(true)
   }
 
   const resetForm = () => {
     setFormData({
-      name: '',
+      title: '',
       description: '',
       price: '',
       stock: '',
-      category: '',
-      image_url: '',
-      status: 'active'
+      image_url: ''
     })
   }
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'active': return 'bg-green-100 text-green-800'
-      case 'inactive': return 'bg-red-100 text-red-800'
-      default: return 'bg-gray-100 text-gray-800'
-    }
-  }
-
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case 'active': return t.common.active
-      case 'inactive': return t.common.inactive
-      default: return status
-    }
-  }
-
   const filteredProducts = products.filter(product =>
-    product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    product.category.toLowerCase().includes(searchTerm.toLowerCase())
+    product.title?.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
   return (
@@ -199,7 +168,6 @@ export default function ProductsPage() {
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t.products.productName}</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t.products.price}</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t.products.stock}</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t.products.status}</th>
                       <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"></th>
                     </tr>
                   </thead>
@@ -211,13 +179,12 @@ export default function ProductsPage() {
                             {product.image_url && (
                               <img
                                 src={product.image_url}
-                                alt={product.name}
+                                alt={product.title}
                                 className="h-10 w-10 rounded-lg object-cover mr-3"
                               />
                             )}
                             <div>
-                              <div className="text-sm font-medium text-gray-900">{product.name}</div>
-                              <div className="text-sm text-gray-500">{product.category}</div>
+                              <div className="text-sm font-medium text-gray-900">{product.title}</div>
                             </div>
                           </div>
                         </td>
@@ -226,11 +193,6 @@ export default function ProductsPage() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           {product.stock}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(product.status)}`}>
-                            {getStatusText(product.status)}
-                          </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                           <button
@@ -272,15 +234,14 @@ export default function ProductsPage() {
                     <input
                       type="text"
                       required
-                      value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      value={formData.title}
+                      onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                       className="mt-1 block w-full rounded-lg border-gray-200 shadow-sm focus:border-coral-500 focus:ring-coral-500 sm:text-sm border p-2"
                     />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700">{t.products.description}</label>
                     <textarea
-                      required
                       value={formData.description}
                       onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                       className="mt-1 block w-full rounded-lg border-gray-200 shadow-sm focus:border-coral-500 focus:ring-coral-500 sm:text-sm border p-2"
@@ -311,16 +272,6 @@ export default function ProductsPage() {
                     </div>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">{t.products.category}</label>
-                    <input
-                      type="text"
-                      required
-                      value={formData.category}
-                      onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                      className="mt-1 block w-full rounded-lg border-gray-200 shadow-sm focus:border-coral-500 focus:ring-coral-500 sm:text-sm border p-2"
-                    />
-                  </div>
-                  <div>
                     <label className="block text-sm font-medium text-gray-700">{t.products.image}</label>
                     <input
                       type="url"
@@ -328,17 +279,6 @@ export default function ProductsPage() {
                       onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
                       className="mt-1 block w-full rounded-lg border-gray-200 shadow-sm focus:border-coral-500 focus:ring-coral-500 sm:text-sm border p-2"
                     />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">{t.products.status}</label>
-                    <select
-                      value={formData.status}
-                      onChange={(e) => setFormData({ ...formData, status: e.target.value as 'active' | 'inactive' | 'draft' })}
-                      className="mt-1 block w-full rounded-lg border-gray-200 shadow-sm focus:border-coral-500 focus:ring-coral-500 sm:text-sm border p-2"
-                    >
-                      <option value="active">{t.common.active}</option>
-                      <option value="inactive">{t.common.inactive}</option>
-                    </select>
                   </div>
                   <div className="flex justify-end space-x-3 pt-4">
                     <button

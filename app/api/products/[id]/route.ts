@@ -6,24 +6,24 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   const supabase = supabaseServer()
-  const { data: { session } } = await supabase.auth.getSession()
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
 
-  if (!session) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (authError || !user) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
   }
 
   const { data, error } = await supabase
     .from('products')
     .select('*')
     .eq('id', params.id)
-    .eq('seller_id', session.user.id)
+    .eq('user_id', user.id)
     .single()
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 })
   }
 
-  return NextResponse.json(data)
+  return NextResponse.json({ success: true, data })
 }
 
 export async function PUT(
@@ -31,27 +31,34 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   const supabase = supabaseServer()
-  const { data: { session } } = await supabase.auth.getSession()
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
 
-  if (!session) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (authError || !user) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
   }
 
   const body = await request.json()
+  const updateData = {
+    title: body.title || body.name,
+    description: body.description,
+    price: body.price,
+    image_url: body.image_url,
+    stock: body.stock
+  }
 
   const { data, error } = await supabase
     .from('products')
-    .update(body)
+    .update(updateData)
     .eq('id', params.id)
-    .eq('seller_id', session.user.id)
+    .eq('user_id', user.id)
     .select()
     .single()
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 })
   }
 
-  return NextResponse.json(data)
+  return NextResponse.json({ success: true, data })
 }
 
 export async function DELETE(
@@ -59,20 +66,20 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   const supabase = supabaseServer()
-  const { data: { session } } = await supabase.auth.getSession()
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
 
-  if (!session) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (authError || !user) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
   }
 
   const { error } = await supabase
     .from('products')
     .delete()
     .eq('id', params.id)
-    .eq('seller_id', session.user.id)
+    .eq('user_id', user.id)
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 })
   }
 
   return NextResponse.json({ success: true })
