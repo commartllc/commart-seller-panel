@@ -2,12 +2,20 @@ import { supabaseServer } from '@/lib/supabase-server'
 import { redirect } from 'next/navigation'
 import DashboardContent from '@/components/dashboard/DashboardContent'
 
+interface Notification {
+  id: string
+  seller_id: string
+  title: string
+  message: string
+  created_at: string
+}
+
 async function getKPIs(sellerId: string) {
   const supabase = supabaseServer()
 
   // Fetch products count
   const { count: productsCount } = await supabase
-    .from('products')
+    .from('master_products')
     .select('*', { count: 'exact', head: true })
     .eq('seller_id', sellerId)
 
@@ -36,6 +44,24 @@ async function getKPIs(sellerId: string) {
   }
 }
 
+async function getNotifications(sellerId: string): Promise<Notification[]> {
+  const supabase = supabaseServer()
+
+  const { data, error } = await supabase
+    .from('notifications')
+    .select('*')
+    .eq('seller_id', sellerId)
+    .order('created_at', { ascending: false })
+    .limit(5)
+
+  if (error) {
+    console.error('Notifications fetch error:', error)
+    return []
+  }
+
+  return data || []
+}
+
 export default async function DashboardPage() {
   const supabase = supabaseServer()
   const { data: { session } } = await supabase.auth.getSession()
@@ -44,7 +70,10 @@ export default async function DashboardPage() {
     redirect('/login')
   }
 
-  const kpis = await getKPIs(session.user.id)
+  const [kpis, notifications] = await Promise.all([
+    getKPIs(session.user.id),
+    getNotifications(session.user.id)
+  ])
 
-  return <DashboardContent kpis={kpis} />
+  return <DashboardContent kpis={kpis} notifications={notifications} />
 }

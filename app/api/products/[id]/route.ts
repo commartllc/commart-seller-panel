@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
 export async function GET(
@@ -9,21 +9,36 @@ export async function GET(
   const { data: { user }, error: authError } = await supabase.auth.getUser()
 
   if (authError || !user) {
-    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+    return Response.json({ success: false, error: 'Unauthorized' }, { status: 401 })
   }
 
-  const { data, error } = await supabase
+  // Fetch product
+  const { data: product, error: productError } = await supabase
     .from('master_products')
     .select('*')
     .eq('id', params.id)
     .eq('seller_id', user.id)
     .single()
 
-  if (error) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 })
+  if (productError) {
+    console.error('Product fetch error:', productError)
+    return Response.json({ success: false, error: productError.message }, { status: 500 })
   }
 
-  return NextResponse.json({ success: true, data })
+  // Fetch variants if they exist
+  const { data: variants } = await supabase
+    .from('product_variants')
+    .select('*')
+    .eq('product_id', params.id)
+    .order('created_at', { ascending: true })
+
+  return Response.json({
+    success: true,
+    data: {
+      ...product,
+      variants: variants || []
+    }
+  })
 }
 
 export async function PUT(
@@ -34,31 +49,74 @@ export async function PUT(
   const { data: { user }, error: authError } = await supabase.auth.getUser()
 
   if (authError || !user) {
-    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+    return Response.json({ success: false, error: 'Unauthorized' }, { status: 401 })
   }
 
   const body = await request.json()
-  const updateData = {
-    title: body.title || body.name,
-    description: body.description,
-    price: body.price,
-    image_url: body.image_url,
-    stock: body.stock
+
+  // Build update data - only stock and price, NOT title
+  const updateData: Record<string, any> = {}
+
+  if (body.new_stock !== undefined) {
+    updateData.total_stock = body.new_stock
+  }
+  if (body.new_price !== undefined) {
+    updateData.base_price = body.new_price
+  }
+  // Legacy support for direct stock/price
+  if (body.stock !== undefined && body.new_stock === undefined) {
+    updateData.total_stock = body.stock
+  }
+  if (body.price !== undefined && body.new_price === undefined) {
+    updateData.base_price = body.price
   }
 
+  // Update main product if there are changes
+  if (Object.keys(updateData).length > 0) {
+    const { error: updateError } = await supabase
+      .from('master_products')
+      .update(updateData)
+      .eq('id', params.id)
+      .eq('seller_id', user.id)
+
+    if (updateError) {
+      console.error('Product update error:', updateError)
+      return Response.json({ success: false, error: updateError.message }, { status: 500 })
+    }
+  }
+
+  // Update variants if provided
+  if (body.variants && Array.isArray(body.variants)) {
+    for (const variant of body.variants) {
+      if (variant.variant_id && variant.new_stock !== undefined) {
+        const { error: variantError } = await supabase
+          .from('product_variants')
+          .update({ stock: variant.new_stock })
+          .eq('id', variant.variant_id)
+          .eq('product_id', params.id)
+
+        if (variantError) {
+          console.error('Variant update error:', variantError)
+          // Continue with other variants even if one fails
+        }
+      }
+    }
+  }
+
+  // Fetch updated product
   const { data, error } = await supabase
     .from('master_products')
-    .update(updateData)
+    .select('*')
     .eq('id', params.id)
     .eq('seller_id', user.id)
-    .select()
     .single()
 
   if (error) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 })
+    console.error('Product refetch error:', error)
+    return Response.json({ success: false, error: error.message }, { status: 500 })
   }
 
-  return NextResponse.json({ success: true, data })
+  return Response.json({ success: true, data })
 }
 
 export async function DELETE(
@@ -69,7 +127,7 @@ export async function DELETE(
   const { data: { user }, error: authError } = await supabase.auth.getUser()
 
   if (authError || !user) {
-    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+    return Response.json({ success: false, error: 'Unauthorized' }, { status: 401 })
   }
 
   const { error } = await supabase
@@ -79,8 +137,9 @@ export async function DELETE(
     .eq('seller_id', user.id)
 
   if (error) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 })
+    console.error('Product delete error:', error)
+    return Response.json({ success: false, error: error.message }, { status: 500 })
   }
 
-  return NextResponse.json({ success: true })
+  return Response.json({ success: true })
 }

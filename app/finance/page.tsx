@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import Sidebar from '@/components/ui/Sidebar'
-import { DollarSign, Clock, CheckCircle } from 'lucide-react'
+import { DollarSign, Clock, CheckCircle, TrendingUp, Percent, Calendar } from 'lucide-react'
 
 interface Payout {
   id: string
@@ -16,10 +16,19 @@ interface Payout {
   created_at: string
 }
 
+interface NextPayout {
+  amount: number
+  date: string
+  currency: string
+}
+
 interface FinanceData {
   total_revenue: number
+  total_fees: number
+  net_earnings: number
   pending: number
   paid: number
+  next_payout: NextPayout | null
   history: Payout[]
 }
 
@@ -43,22 +52,43 @@ export default function FinancePage() {
       try {
         const res = await fetch('/api/payouts')
         const json = await res.json()
-        const data = json.data ?? { total_revenue: 0, pending: 0, paid: 0, history: [] }
+        const data = json.data ?? {
+          total_revenue: 0,
+          total_fees: 0,
+          net_earnings: 0,
+          pending: 0,
+          paid: 0,
+          next_payout: null,
+          history: []
+        }
         const history = data.history ?? json.payouts ?? []
         const historyArray = Array.isArray(history) ? history : []
         setFinanceData({
           total_revenue: data.total_revenue ?? 0,
+          total_fees: data.total_fees ?? 0,
+          net_earnings: data.net_earnings ?? 0,
           pending: data.pending ?? 0,
           paid: data.paid ?? 0,
+          next_payout: data.next_payout ?? null,
           history: historyArray
         })
-        // Set primary currency from first payout or default to TRY
-        if (historyArray.length > 0 && historyArray[0].currency) {
+        // Set primary currency from first payout or next_payout or default to TRY
+        if (data.next_payout?.currency) {
+          setPrimaryCurrency(data.next_payout.currency)
+        } else if (historyArray.length > 0 && historyArray[0].currency) {
           setPrimaryCurrency(historyArray[0].currency)
         }
       } catch (error) {
         console.error('Failed to fetch finance data:', error)
-        setFinanceData({ total_revenue: 0, pending: 0, paid: 0, history: [] })
+        setFinanceData({
+          total_revenue: 0,
+          total_fees: 0,
+          net_earnings: 0,
+          pending: 0,
+          paid: 0,
+          next_payout: null,
+          history: []
+        })
       } finally {
         setLoading(false)
       }
@@ -85,6 +115,10 @@ export default function FinancePage() {
     }
   }
 
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString()
+  }
+
   return (
     <div className="flex min-h-screen">
       <Sidebar />
@@ -99,15 +133,16 @@ export default function FinancePage() {
             <div className="text-center py-12 text-gray-500">{t.common.loading}</div>
           ) : (
             <>
-              {/* Finance Overview Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+              {/* KPI Cards - 4 cards */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {/* Total Revenue */}
+                <div className="bg-white rounded-md shadow-sm border border-gray-100 p-6">
                   <div className="flex items-center">
-                    <div className="bg-green-50 p-3 rounded-lg">
+                    <div className="bg-green-50 p-3 rounded-md">
                       <DollarSign className="h-6 w-6 text-green-500" />
                     </div>
                     <div className="ml-4">
-                      <p className="text-sm font-medium text-gray-500">{t.finance.totalEarnings}</p>
+                      <p className="text-sm font-medium text-gray-500">{t.finance.totalEarnings || 'Total Revenue'}</p>
                       <p className="text-2xl font-bold text-gray-900">
                         {getCurrencySymbol(primaryCurrency)}{(financeData?.total_revenue || 0).toLocaleString()}
                       </p>
@@ -115,37 +150,61 @@ export default function FinancePage() {
                   </div>
                 </div>
 
-                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                {/* Total Fees */}
+                <div className="bg-white rounded-md shadow-sm border border-gray-100 p-6">
                   <div className="flex items-center">
-                    <div className="bg-yellow-50 p-3 rounded-lg">
-                      <Clock className="h-6 w-6 text-yellow-500" />
+                    <div className="bg-red-50 p-3 rounded-md">
+                      <Percent className="h-6 w-6 text-red-500" />
                     </div>
                     <div className="ml-4">
-                      <p className="text-sm font-medium text-gray-500">{t.finance.pendingPayout}</p>
+                      <p className="text-sm font-medium text-gray-500">Total Fees (30%)</p>
                       <p className="text-2xl font-bold text-gray-900">
-                        {getCurrencySymbol(primaryCurrency)}{(financeData?.pending || 0).toLocaleString()}
+                        {getCurrencySymbol(primaryCurrency)}{(financeData?.total_fees || 0).toLocaleString()}
                       </p>
                     </div>
                   </div>
                 </div>
 
-                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                {/* Net Earnings */}
+                <div className="bg-white rounded-md shadow-sm border border-gray-100 p-6">
                   <div className="flex items-center">
-                    <div className="bg-blue-50 p-3 rounded-lg">
-                      <CheckCircle className="h-6 w-6 text-blue-500" />
+                    <div className="bg-blue-50 p-3 rounded-md">
+                      <TrendingUp className="h-6 w-6 text-blue-500" />
                     </div>
                     <div className="ml-4">
-                      <p className="text-sm font-medium text-gray-500">{t.finance.lastPayout}</p>
+                      <p className="text-sm font-medium text-gray-500">Net Earnings</p>
                       <p className="text-2xl font-bold text-gray-900">
-                        {getCurrencySymbol(primaryCurrency)}{(financeData?.paid || 0).toLocaleString()}
+                        {getCurrencySymbol(primaryCurrency)}{(financeData?.net_earnings || 0).toLocaleString()}
                       </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Next Scheduled Payout */}
+                <div className="bg-white rounded-md shadow-sm border border-gray-100 p-6">
+                  <div className="flex items-center">
+                    <div className="bg-yellow-50 p-3 rounded-md">
+                      <Calendar className="h-6 w-6 text-yellow-500" />
+                    </div>
+                    <div className="ml-4">
+                      <p className="text-sm font-medium text-gray-500">{t.finance.pendingPayout || 'Next Payout'}</p>
+                      {financeData?.next_payout ? (
+                        <>
+                          <p className="text-2xl font-bold text-gray-900">
+                            {getCurrencySymbol(financeData.next_payout.currency)}{financeData.next_payout.amount.toLocaleString()}
+                          </p>
+                          <p className="text-xs text-gray-500">{formatDate(financeData.next_payout.date)}</p>
+                        </>
+                      ) : (
+                        <p className="text-lg font-medium text-gray-400">No pending payout</p>
+                      )}
                     </div>
                   </div>
                 </div>
               </div>
 
               {/* Payout History */}
-              <div className="bg-white rounded-xl shadow-sm border border-gray-100">
+              <div className="bg-white rounded-md shadow-sm border border-gray-100">
                 <div className="px-6 py-4 border-b border-gray-100">
                   <h2 className="text-lg font-semibold text-gray-900">{t.finance.payoutHistory}</h2>
                 </div>
@@ -156,7 +215,7 @@ export default function FinancePage() {
                         <div className="flex items-center">
                           <div className="ml-3">
                             <p className="text-sm font-medium text-gray-900">
-                              {payout.description || `${t.finance.payout} #${payout.id.slice(0, 8)}`}
+                              {payout.description || `${t.finance.payout || 'Payout'} #${payout.id.slice(0, 8)}`}
                             </p>
                             <p className="text-sm text-gray-500">
                               {payout.payout_date
@@ -175,7 +234,7 @@ export default function FinancePage() {
                     ))
                   ) : (
                     <div className="px-6 py-8 text-center text-gray-500">
-                      {t.finance.noTransactions}
+                      {t.finance.noTransactions || 'No payout history yet'}
                     </div>
                   )}
                 </div>

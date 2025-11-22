@@ -34,6 +34,13 @@ const config: Config = {
           900: '#872a15',
         },
       },
+      borderRadius: {
+        'sm': '3px',
+        DEFAULT: '4px',
+        'md': '4px',
+        'lg': '5px',
+        'xl': '5px',
+      },
     },
   },
   plugins: [],
