@@ -16,11 +16,22 @@ interface Order {
   status: string
   date: string
   created_at: string
+  currency?: string
   product?: {
     title: string
     price: number
     image_url: string
   }
+}
+
+const formatCurrency = (amount: number, currency: string = 'USD') => {
+  const symbols: Record<string, string> = {
+    USD: '$',
+    EUR: '€',
+    TRY: '₺',
+    GBP: '£'
+  }
+  return `${symbols[currency] || '$'}${amount.toFixed(2)}`
 }
 
 export default function OrdersPage() {
@@ -106,7 +117,7 @@ export default function OrdersPage() {
   return (
     <div className="flex min-h-screen">
       <Sidebar />
-      <main className="flex-1 ml-64 p-8">
+      <main className="flex-1 p-8 pt-16 lg:pt-8">
         <div className="max-w-7xl mx-auto space-y-6">
           {/* Header */}
           <div>
@@ -162,31 +173,31 @@ export default function OrdersPage() {
             ) : filteredOrders.length === 0 ? (
               <div className="p-6 text-center text-gray-500">{t.orders.noOrders}</div>
             ) : (
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto max-h-[70vh]">
                 <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
+                  <thead className="bg-gray-50 sticky top-0 z-10">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t.orders.orderId}</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t.orders.customer}</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t.orders.total}</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t.orders.date}</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t.orders.status}</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky left-0 bg-gray-50 z-20 min-w-[120px]">{t.orders.orderId}</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[150px]">{t.orders.customer}</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[100px]">{t.orders.total}</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[100px]">{t.orders.date}</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[100px]">{t.orders.status}</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {filteredOrders.map((order) => (
                       <tr key={order.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 sticky left-0 bg-white z-10">
                           #{order.id.slice(0, 8)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">{order.buyer || order.buyer_email}</div>
+                          <div className="text-sm text-gray-900 truncate max-w-[150px]">{order.buyer || order.buyer_email}</div>
                           {order.product && (
-                            <div className="text-sm text-gray-500">{order.product.title}</div>
+                            <div className="text-sm text-gray-500 truncate max-w-[150px]">{order.product.title}</div>
                           )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                          {t.common.currency}{(order.total ?? 0).toFixed(2)}
+                          {formatCurrency(order.total ?? 0, order.currency)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {new Date(order.date || order.created_at).toLocaleDateString()}

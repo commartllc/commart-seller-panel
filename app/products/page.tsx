@@ -22,7 +22,18 @@ interface Product {
   image: string
   stock: number
   created_at: string
+  currency?: string
   variants?: ProductVariant[]
+}
+
+const formatCurrency = (amount: number, currency: string = 'USD') => {
+  const symbols: Record<string, string> = {
+    USD: '$',
+    EUR: '€',
+    TRY: '₺',
+    GBP: '£'
+  }
+  return `${symbols[currency] || '$'}${amount.toFixed(2)}`
 }
 
 export default function ProductsPage() {
@@ -181,7 +192,7 @@ export default function ProductsPage() {
   return (
     <div className="flex min-h-screen">
       <Sidebar />
-      <main className="flex-1 ml-64 p-8">
+      <main className="flex-1 p-8 pt-16 lg:pt-8">
         <div className="max-w-7xl mx-auto space-y-6">
           {/* Toast */}
           {toast && (
@@ -227,35 +238,35 @@ export default function ProductsPage() {
             ) : filteredProducts.length === 0 ? (
               <div className="p-6 text-center text-gray-500">{t.products.noProducts}</div>
             ) : (
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto max-h-[70vh]">
                 <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
+                  <thead className="bg-gray-50 sticky top-0 z-10">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t.products.productName}</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t.products.price}</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t.products.stock}</th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"></th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky left-0 bg-gray-50 z-20 min-w-[200px]">{t.products.productName}</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[100px]">{t.products.price}</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[80px]">{t.products.stock}</th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[100px]"></th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {filteredProducts.map((product) => (
                       <tr key={product.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-6 py-4 whitespace-nowrap sticky left-0 bg-white z-10">
                           <div className="flex items-center">
                             {(product.image_url || product.image) && (
                               <img
                                 src={product.image_url || product.image}
                                 alt={product.title}
-                                className="h-10 w-10 rounded-md object-cover mr-3"
+                                className="h-10 w-10 rounded-md object-cover mr-3 flex-shrink-0"
                               />
                             )}
-                            <div>
-                              <div className="text-sm font-medium text-gray-900">{product.title}</div>
+                            <div className="min-w-0">
+                              <div className="text-sm font-medium text-gray-900 truncate max-w-[150px]">{product.title}</div>
                             </div>
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                          {t.common.currency}{product.price?.toFixed(2) || '0.00'}
+                          {formatCurrency(product.price || 0, product.currency)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           {product.stock ?? 0}

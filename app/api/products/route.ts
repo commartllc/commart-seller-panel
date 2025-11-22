@@ -27,7 +27,8 @@ export async function GET() {
     price: item.base_price ?? item.price,
     image: item.featured_image ?? (Array.isArray(item.images) ? item.images[0] : null),
     created: item.created_at,
-    stock: item.total_stock ?? item.available_stock
+    stock: item.total_stock ?? item.available_stock,
+    currency: item.currency || 'USD'
   }))
 
   return Response.json({ success: true, data: normalized })

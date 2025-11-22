@@ -25,7 +25,8 @@ export async function GET() {
     total: item.total_amount,
     status: item.status,
     date: item.created_at,
-    buyer: item.customer_name ?? item.customer_email
+    buyer: item.customer_name ?? item.customer_email,
+    currency: item.currency || 'USD'
   }))
 
   return Response.json({ success: true, data: normalized })

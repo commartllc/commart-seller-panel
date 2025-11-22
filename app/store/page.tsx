@@ -106,7 +106,7 @@ export default function StorePage() {
   return (
     <div className="flex min-h-screen">
       <Sidebar />
-      <main className="flex-1 ml-64 p-8">
+      <main className="flex-1 p-8 pt-16 lg:pt-8">
         <div className="max-w-3xl mx-auto space-y-6">
           {/* Toast */}
           {toast && (

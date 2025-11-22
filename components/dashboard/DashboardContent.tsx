@@ -111,7 +111,7 @@ export default function DashboardContent({ kpis, notifications = [] }: Dashboard
   return (
     <div className="flex min-h-screen">
       <Sidebar />
-      <main className="flex-1 ml-64 p-8">
+      <main className="flex-1 p-8 pt-16 lg:pt-8">
         <div className="max-w-7xl mx-auto space-y-6">
           {/* Header */}
           <div>
