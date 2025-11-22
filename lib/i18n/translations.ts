@@ -66,6 +66,7 @@ export const translations = {
       editProduct: 'Ürünü Düzenle',
       deleteProduct: 'Ürünü Sil',
       confirmDelete: 'Bu ürünü silmek istediğinizden emin misiniz?',
+      updateSuccess: 'Ürün başarıyla güncellendi',
     },
     // Orders
     orders: {
@@ -217,6 +218,7 @@ export const translations = {
       editProduct: 'Edit Product',
       deleteProduct: 'Delete Product',
       confirmDelete: 'Are you sure you want to delete this product?',
+      updateSuccess: 'Product updated successfully',
     },
     // Orders
     orders: {

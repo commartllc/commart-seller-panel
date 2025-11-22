@@ -92,7 +92,7 @@ export default function ProductsPage() {
         })
 
         if (res.ok) {
-          showToast(t.products.updateSuccess || 'Product updated successfully')
+          showToast(t.products?.updateSuccess ?? 'Product updated successfully')
         }
       } else {
         // Create new product
