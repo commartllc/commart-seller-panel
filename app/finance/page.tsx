@@ -23,10 +23,20 @@ interface FinanceData {
   history: Payout[]
 }
 
+const getCurrencySymbol = (currency: string) => {
+  switch (currency?.toUpperCase()) {
+    case 'TRY': return '₺'
+    case 'USD': return '$'
+    case 'EUR': return '€'
+    default: return '₺'
+  }
+}
+
 export default function FinancePage() {
   const { t } = useLanguage()
   const [financeData, setFinanceData] = useState<FinanceData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [primaryCurrency, setPrimaryCurrency] = useState('TRY')
 
   useEffect(() => {
     const fetchFinance = async () => {
@@ -35,12 +45,17 @@ export default function FinancePage() {
         const json = await res.json()
         const data = json.data ?? { total_revenue: 0, pending: 0, paid: 0, history: [] }
         const history = data.history ?? json.payouts ?? []
+        const historyArray = Array.isArray(history) ? history : []
         setFinanceData({
           total_revenue: data.total_revenue ?? 0,
           pending: data.pending ?? 0,
           paid: data.paid ?? 0,
-          history: Array.isArray(history) ? history : []
+          history: historyArray
         })
+        // Set primary currency from first payout or default to TRY
+        if (historyArray.length > 0 && historyArray[0].currency) {
+          setPrimaryCurrency(historyArray[0].currency)
+        }
       } catch (error) {
         console.error('Failed to fetch finance data:', error)
         setFinanceData({ total_revenue: 0, pending: 0, paid: 0, history: [] })
@@ -94,7 +109,7 @@ export default function FinancePage() {
                     <div className="ml-4">
                       <p className="text-sm font-medium text-gray-500">{t.finance.totalEarnings}</p>
                       <p className="text-2xl font-bold text-gray-900">
-                        {t.common.currency}{(financeData?.total_revenue || 0).toLocaleString()}
+                        {getCurrencySymbol(primaryCurrency)}{(financeData?.total_revenue || 0).toLocaleString()}
                       </p>
                     </div>
                   </div>
@@ -108,7 +123,7 @@ export default function FinancePage() {
                     <div className="ml-4">
                       <p className="text-sm font-medium text-gray-500">{t.finance.pendingPayout}</p>
                       <p className="text-2xl font-bold text-gray-900">
-                        {t.common.currency}{(financeData?.pending || 0).toLocaleString()}
+                        {getCurrencySymbol(primaryCurrency)}{(financeData?.pending || 0).toLocaleString()}
                       </p>
                     </div>
                   </div>
@@ -122,7 +137,7 @@ export default function FinancePage() {
                     <div className="ml-4">
                       <p className="text-sm font-medium text-gray-500">{t.finance.lastPayout}</p>
                       <p className="text-2xl font-bold text-gray-900">
-                        {t.common.currency}{(financeData?.paid || 0).toLocaleString()}
+                        {getCurrencySymbol(primaryCurrency)}{(financeData?.paid || 0).toLocaleString()}
                       </p>
                     </div>
                   </div>
@@ -152,7 +167,7 @@ export default function FinancePage() {
                         </div>
                         <div className="text-right">
                           <span className={`text-sm font-semibold ${getStatusColor(payout.status)}`}>
-                            {t.common.currency}{payout.amount.toFixed(2)}
+                            {getCurrencySymbol(payout.currency)}{payout.amount.toFixed(2)}
                           </span>
                           <p className="text-xs text-gray-500">{getStatusText(payout.status)}</p>
                         </div>

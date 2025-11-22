@@ -30,7 +30,11 @@ export async function GET() {
   const history = items.map((item: any) => ({
     id: item.id,
     amount: item.amount,
+    currency: item.currency || 'TRY',
     status: item.status,
+    description: item.description,
+    payout_date: item.payout_date,
+    created_at: item.created_at,
     date: item.payout_date ?? item.created_at
   }))
 
