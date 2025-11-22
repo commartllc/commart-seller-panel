@@ -10,9 +10,9 @@ export async function GET() {
   }
 
   const { data, error } = await supabase
-    .from('products')
+    .from('master_products')
     .select('*')
-    .eq('user_id', user.id)
+    .eq('seller_id', user.id)
     .order('created_at', { ascending: false })
 
   if (error) {
@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
 
   const body = await request.json()
   const productData = {
-    user_id: user.id,
+    seller_id: user.id,
     title: body.title || body.name,
     description: body.description,
     price: body.price,
@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
   }
 
   const { data, error } = await supabase
-    .from('products')
+    .from('master_products')
     .insert(productData)
     .select()
     .single()

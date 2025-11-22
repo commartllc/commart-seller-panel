@@ -7,19 +7,20 @@ import { DollarSign, Clock, CheckCircle } from 'lucide-react'
 
 interface Payout {
   id: string
-  user_id: string
+  seller_id: string
   amount: number
+  currency: string
   status: string
+  description: string | null
+  payout_date: string | null
   created_at: string
 }
 
 interface FinanceData {
-  data: Payout[]
-  summary: {
-    totalEarnings: number
-    pendingPayouts: number
-    completedPayouts: number
-  }
+  total_revenue: number
+  pending: number
+  paid: number
+  history: Payout[]
 }
 
 export default function FinancePage() {
@@ -33,14 +34,7 @@ export default function FinancePage() {
         const res = await fetch('/api/payouts')
         const json = await res.json()
         if (json.success) {
-          setFinanceData({
-            data: json.data || [],
-            summary: json.summary || {
-              totalEarnings: 0,
-              pendingPayouts: 0,
-              completedPayouts: 0
-            }
-          })
+          setFinanceData(json.data)
         }
       } catch (error) {
         console.error('Failed to fetch finance data:', error)
@@ -54,9 +48,19 @@ export default function FinancePage() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'completed': return 'text-green-600'
+      case 'paid': return 'text-green-600'
       case 'pending': return 'text-yellow-600'
+      case 'cancelled': return 'text-red-600'
       default: return 'text-gray-600'
+    }
+  }
+
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case 'paid': return t.common.completed
+      case 'pending': return t.common.pending
+      case 'cancelled': return t.common.cancelled
+      default: return status
     }
   }
 
@@ -84,7 +88,7 @@ export default function FinancePage() {
                     <div className="ml-4">
                       <p className="text-sm font-medium text-gray-500">{t.finance.totalEarnings}</p>
                       <p className="text-2xl font-bold text-gray-900">
-                        {t.common.currency}{(financeData?.summary.totalEarnings || 0).toLocaleString()}
+                        {t.common.currency}{(financeData?.total_revenue || 0).toLocaleString()}
                       </p>
                     </div>
                   </div>
@@ -98,7 +102,7 @@ export default function FinancePage() {
                     <div className="ml-4">
                       <p className="text-sm font-medium text-gray-500">{t.finance.pendingPayout}</p>
                       <p className="text-2xl font-bold text-gray-900">
-                        {t.common.currency}{(financeData?.summary.pendingPayouts || 0).toLocaleString()}
+                        {t.common.currency}{(financeData?.pending || 0).toLocaleString()}
                       </p>
                     </div>
                   </div>
@@ -112,29 +116,31 @@ export default function FinancePage() {
                     <div className="ml-4">
                       <p className="text-sm font-medium text-gray-500">{t.finance.lastPayout}</p>
                       <p className="text-2xl font-bold text-gray-900">
-                        {t.common.currency}{(financeData?.summary.completedPayouts || 0).toLocaleString()}
+                        {t.common.currency}{(financeData?.paid || 0).toLocaleString()}
                       </p>
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Payouts List */}
+              {/* Payout History */}
               <div className="bg-white rounded-xl shadow-sm border border-gray-100">
                 <div className="px-6 py-4 border-b border-gray-100">
                   <h2 className="text-lg font-semibold text-gray-900">{t.finance.payoutHistory}</h2>
                 </div>
                 <div className="divide-y divide-gray-100">
-                  {financeData?.data && financeData.data.length > 0 ? (
-                    financeData.data.map((payout) => (
+                  {financeData?.history && financeData.history.length > 0 ? (
+                    financeData.history.map((payout) => (
                       <div key={payout.id} className="px-6 py-4 flex items-center justify-between hover:bg-gray-50">
                         <div className="flex items-center">
                           <div className="ml-3">
                             <p className="text-sm font-medium text-gray-900">
-                              {t.finance.payout} #{payout.id.slice(0, 8)}
+                              {payout.description || `${t.finance.payout} #${payout.id.slice(0, 8)}`}
                             </p>
                             <p className="text-sm text-gray-500">
-                              {new Date(payout.created_at).toLocaleDateString()}
+                              {payout.payout_date
+                                ? new Date(payout.payout_date).toLocaleDateString()
+                                : new Date(payout.created_at).toLocaleDateString()}
                             </p>
                           </div>
                         </div>
@@ -142,7 +148,7 @@ export default function FinancePage() {
                           <span className={`text-sm font-semibold ${getStatusColor(payout.status)}`}>
                             {t.common.currency}{payout.amount.toFixed(2)}
                           </span>
-                          <p className="text-xs text-gray-500 capitalize">{payout.status}</p>
+                          <p className="text-xs text-gray-500">{getStatusText(payout.status)}</p>
                         </div>
                       </div>
                     ))

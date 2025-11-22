@@ -13,10 +13,10 @@ export async function GET(
   }
 
   const { data, error } = await supabase
-    .from('products')
+    .from('master_products')
     .select('*')
     .eq('id', params.id)
-    .eq('user_id', user.id)
+    .eq('seller_id', user.id)
     .single()
 
   if (error) {
@@ -47,10 +47,10 @@ export async function PUT(
   }
 
   const { data, error } = await supabase
-    .from('products')
+    .from('master_products')
     .update(updateData)
     .eq('id', params.id)
-    .eq('user_id', user.id)
+    .eq('seller_id', user.id)
     .select()
     .single()
 
@@ -73,10 +73,10 @@ export async function DELETE(
   }
 
   const { error } = await supabase
-    .from('products')
+    .from('master_products')
     .delete()
     .eq('id', params.id)
-    .eq('user_id', user.id)
+    .eq('seller_id', user.id)
 
   if (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 })
