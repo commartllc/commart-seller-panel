@@ -1,23 +1,11 @@
-import { NextResponse } from 'next/server'
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
+import { createClient } from '@/lib/supabase/server'
 
 export async function GET() {
-  const cookieStore = cookies()
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    {
-      cookies: {
-        get(name) { return cookieStore.get(name)?.value }
-      }
-    }
-  )
-
+  const supabase = createClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
 
   if (authError || !user) {
-    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+    return Response.json({ success: false, error: 'Unauthorized' }, { status: 401 })
   }
 
   const { data, error } = await supabase
@@ -27,11 +15,12 @@ export async function GET() {
     .order('created_at', { ascending: false })
 
   if (error) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 })
+    console.error('Orders API error:', error)
+    return Response.json({ success: false, error: error.message }, { status: 500 })
   }
 
   // Normalize data for UI
-  const normalized = (data || []).map((item: any) => ({
+  const normalized = (data ?? []).map((item: any) => ({
     id: item.id,
     total: item.total_amount,
     status: item.status,
@@ -39,5 +28,5 @@ export async function GET() {
     buyer: item.customer_name ?? item.customer_email
   }))
 
-  return NextResponse.json({ success: true, data: normalized })
+  return Response.json({ success: true, data: normalized })
 }

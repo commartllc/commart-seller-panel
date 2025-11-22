@@ -1,23 +1,12 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
+import { NextRequest } from 'next/server'
+import { createClient } from '@/lib/supabase/server'
 
 export async function GET() {
-  const cookieStore = cookies()
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    {
-      cookies: {
-        get(name) { return cookieStore.get(name)?.value }
-      }
-    }
-  )
-
+  const supabase = createClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
 
   if (authError || !user) {
-    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+    return Response.json({ success: false, error: 'Unauthorized' }, { status: 401 })
   }
 
   const { data, error } = await supabase
@@ -27,11 +16,12 @@ export async function GET() {
     .order('created_at', { ascending: false })
 
   if (error) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 })
+    console.error('Products API error:', error)
+    return Response.json({ success: false, error: error.message }, { status: 500 })
   }
 
   // Normalize data for UI
-  const normalized = (data || []).map((item: any) => ({
+  const normalized = (data ?? []).map((item: any) => ({
     id: item.id,
     title: item.title,
     price: item.base_price ?? item.price,
@@ -40,25 +30,15 @@ export async function GET() {
     stock: item.total_stock ?? item.available_stock
   }))
 
-  return NextResponse.json({ success: true, data: normalized })
+  return Response.json({ success: true, data: normalized })
 }
 
 export async function POST(request: NextRequest) {
-  const cookieStore = cookies()
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    {
-      cookies: {
-        get(name) { return cookieStore.get(name)?.value }
-      }
-    }
-  )
-
+  const supabase = createClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
 
   if (authError || !user) {
-    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+    return Response.json({ success: false, error: 'Unauthorized' }, { status: 401 })
   }
 
   const body = await request.json()
@@ -78,8 +58,9 @@ export async function POST(request: NextRequest) {
     .single()
 
   if (error) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 })
+    console.error('Products POST error:', error)
+    return Response.json({ success: false, error: error.message }, { status: 500 })
   }
 
-  return NextResponse.json({ success: true, data })
+  return Response.json({ success: true, data: data ?? {} })
 }

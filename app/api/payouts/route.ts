@@ -1,23 +1,12 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
+import { NextRequest } from 'next/server'
+import { createClient } from '@/lib/supabase/server'
 
 export async function GET() {
-  const cookieStore = cookies()
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    {
-      cookies: {
-        get(name) { return cookieStore.get(name)?.value }
-      }
-    }
-  )
-
+  const supabase = createClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
 
   if (authError || !user) {
-    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+    return Response.json({ success: false, error: 'Unauthorized' }, { status: 401 })
   }
 
   const { data, error } = await supabase
@@ -27,23 +16,25 @@ export async function GET() {
     .order('created_at', { ascending: false })
 
   if (error) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 })
+    console.error('Payouts API error:', error)
+    return Response.json({ success: false, error: error.message }, { status: 500 })
   }
 
   // Calculate totals
-  const total_revenue = data?.reduce((sum, p) => sum + Number(p.amount), 0) || 0
-  const pending = data?.reduce((sum, p) => p.status === 'pending' ? sum + Number(p.amount) : sum, 0) || 0
-  const paid = data?.reduce((sum, p) => p.status === 'paid' ? sum + Number(p.amount) : sum, 0) || 0
+  const items = data ?? []
+  const total_revenue = items.reduce((sum, p) => sum + Number(p.amount), 0)
+  const pending = items.reduce((sum, p) => p.status === 'pending' ? sum + Number(p.amount) : sum, 0)
+  const paid = items.reduce((sum, p) => p.status === 'paid' ? sum + Number(p.amount) : sum, 0)
 
   // Normalize history data for UI
-  const history = (data || []).map((item: any) => ({
+  const history = items.map((item: any) => ({
     id: item.id,
     amount: item.amount,
     status: item.status,
     date: item.payout_date ?? item.created_at
   }))
 
-  return NextResponse.json({
+  return Response.json({
     success: true,
     data: {
       total_revenue,
@@ -55,21 +46,11 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const cookieStore = cookies()
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    {
-      cookies: {
-        get(name) { return cookieStore.get(name)?.value }
-      }
-    }
-  )
-
+  const supabase = createClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
 
   if (authError || !user) {
-    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+    return Response.json({ success: false, error: 'Unauthorized' }, { status: 401 })
   }
 
   const body = await request.json()
@@ -89,8 +70,9 @@ export async function POST(request: NextRequest) {
     .single()
 
   if (error) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 })
+    console.error('Payouts POST error:', error)
+    return Response.json({ success: false, error: error.message }, { status: 500 })
   }
 
-  return NextResponse.json({ success: true, data })
+  return Response.json({ success: true, data: data ?? {} })
 }
