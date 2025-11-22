@@ -3,16 +3,18 @@
 import { useState, useEffect } from 'react'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import Sidebar from '@/components/ui/Sidebar'
-import { Search, Filter } from 'lucide-react'
+import { Search, Filter, Calendar } from 'lucide-react'
 
 interface Order {
   id: string
   user_id: string
+  buyer: string
   buyer_email: string
   product_id: string
   quantity: number
   total: number
   status: string
+  date: string
   created_at: string
   product?: {
     title: string
@@ -27,6 +29,7 @@ export default function OrdersPage() {
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [dateFilter, setDateFilter] = useState<string>('all')
 
   const fetchOrders = async () => {
     try {
@@ -68,11 +71,36 @@ export default function OrdersPage() {
     }
   }
 
+  const filterByDate = (order: Order) => {
+    if (dateFilter === 'all') return true
+
+    const orderDate = new Date(order.date || order.created_at)
+    const now = new Date()
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+
+    switch (dateFilter) {
+      case 'today':
+        return orderDate >= today
+      case '7days':
+        const weekAgo = new Date(today)
+        weekAgo.setDate(weekAgo.getDate() - 7)
+        return orderDate >= weekAgo
+      case '30days':
+        const monthAgo = new Date(today)
+        monthAgo.setDate(monthAgo.getDate() - 30)
+        return orderDate >= monthAgo
+      default:
+        return true
+    }
+  }
+
   const filteredOrders = orders.filter(order => {
-    const matchesSearch = order.buyer_email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    const buyerInfo = order.buyer || order.buyer_email || ''
+    const matchesSearch = buyerInfo.toLowerCase().includes(searchTerm.toLowerCase()) ||
       order.id.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesStatus = statusFilter === 'all' || order.status === statusFilter
-    return matchesSearch && matchesStatus
+    const matchesDate = filterByDate(order)
+    return matchesSearch && matchesStatus && matchesDate
   })
 
   return (
@@ -94,7 +122,7 @@ export default function OrdersPage() {
                 placeholder={t.orders.searchOrders}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-coral-500 focus:border-transparent"
+                className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-coral-500 focus:border-transparent"
               />
             </div>
             <div className="relative">
@@ -102,7 +130,7 @@ export default function OrdersPage() {
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="pl-10 pr-8 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-coral-500 focus:border-transparent appearance-none bg-white"
+                className="pl-10 pr-8 py-2 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-coral-500 focus:border-transparent appearance-none bg-white"
               >
                 <option value="all">{t.common.all}</option>
                 <option value="pending">{t.common.pending}</option>
@@ -112,10 +140,23 @@ export default function OrdersPage() {
                 <option value="cancelled">{t.common.cancelled}</option>
               </select>
             </div>
+            <div className="relative">
+              <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+              <select
+                value={dateFilter}
+                onChange={(e) => setDateFilter(e.target.value)}
+                className="pl-10 pr-8 py-2 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-coral-500 focus:border-transparent appearance-none bg-white"
+              >
+                <option value="all">All Time</option>
+                <option value="today">Today</option>
+                <option value="7days">Last 7 Days</option>
+                <option value="30days">Last 30 Days</option>
+              </select>
+            </div>
           </div>
 
           {/* Orders Table */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="bg-white rounded-md shadow-sm border border-gray-100 overflow-hidden">
             {loading ? (
               <div className="p-6 text-center text-gray-500">{t.common.loading}</div>
             ) : filteredOrders.length === 0 ? (
@@ -139,19 +180,19 @@ export default function OrdersPage() {
                           #{order.id.slice(0, 8)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">{order.buyer_email}</div>
+                          <div className="text-sm text-gray-900">{order.buyer || order.buyer_email}</div>
                           {order.product && (
                             <div className="text-sm text-gray-500">{order.product.title}</div>
                           )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                          {t.common.currency}{order.total.toFixed(2)}
+                          {t.common.currency}{(order.total ?? 0).toFixed(2)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {new Date(order.created_at).toLocaleDateString()}
+                          {new Date(order.date || order.created_at).toLocaleDateString()}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(order.status)}`}>
+                          <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-md ${getStatusColor(order.status)}`}>
                             {getStatusText(order.status)}
                           </span>
                         </td>

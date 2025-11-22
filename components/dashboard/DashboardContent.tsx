@@ -1,5 +1,6 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import Sidebar from '@/components/ui/Sidebar'
 import { TrendingUp, Package, ShoppingCart, DollarSign, Bell } from 'lucide-react'
@@ -10,6 +11,15 @@ interface Notification {
   title: string
   message: string
   created_at: string
+}
+
+interface Order {
+  id: string
+  total_amount: number
+  status: string
+  created_at: string
+  customer_name?: string
+  customer_email?: string
 }
 
 interface DashboardContentProps {
@@ -24,6 +34,32 @@ interface DashboardContentProps {
 
 export default function DashboardContent({ kpis, notifications = [] }: DashboardContentProps) {
   const { t } = useLanguage()
+  const [recentOrders, setRecentOrders] = useState<Order[]>([])
+  const [orderBreakdown, setOrderBreakdown] = useState({ pending: 0, fulfilled: 0, cancelled: 0 })
+
+  useEffect(() => {
+    const fetchOrders = async () => {
+      try {
+        const res = await fetch('/api/orders')
+        const json = await res.json()
+        const orders = json.data ?? []
+
+        // Get recent 5 orders
+        setRecentOrders(orders.slice(0, 5))
+
+        // Calculate order breakdown
+        const breakdown = {
+          pending: orders.filter((o: Order) => o.status === 'pending').length,
+          fulfilled: orders.filter((o: Order) => ['completed', 'delivered', 'shipped'].includes(o.status)).length,
+          cancelled: orders.filter((o: Order) => o.status === 'cancelled').length
+        }
+        setOrderBreakdown(breakdown)
+      } catch (error) {
+        console.error('Failed to fetch orders:', error)
+      }
+    }
+    fetchOrders()
+  }, [])
 
   const stats = [
     {
@@ -59,6 +95,17 @@ export default function DashboardContent({ kpis, notifications = [] }: Dashboard
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
     return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  }
+
+  const getStatusBadge = (status: string) => {
+    const colors: Record<string, string> = {
+      pending: 'bg-yellow-100 text-yellow-800',
+      completed: 'bg-green-100 text-green-800',
+      delivered: 'bg-green-100 text-green-800',
+      shipped: 'bg-blue-100 text-blue-800',
+      cancelled: 'bg-red-100 text-red-800'
+    }
+    return colors[status] || 'bg-gray-100 text-gray-800'
   }
 
   return (
@@ -124,16 +171,46 @@ export default function DashboardContent({ kpis, notifications = [] }: Dashboard
             {/* Sales Overview */}
             <div className="bg-white rounded-md shadow-sm border border-gray-100 p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">{t.dashboard.salesOverview}</h2>
-              <div className="h-64 flex items-center justify-center text-gray-400">
-                <p>{t.dashboard.monthlyRevenue}</p>
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Total Sales</span>
+                  <span className="font-semibold">{kpis.totalOrders} orders</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Revenue</span>
+                  <span className="font-semibold">{t.common.currency}{kpis.totalRevenue.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Average Order</span>
+                  <span className="font-semibold">
+                    {t.common.currency}{kpis.totalOrders > 0 ? (kpis.totalRevenue / kpis.totalOrders).toFixed(2) : '0'}
+                  </span>
+                </div>
               </div>
             </div>
 
-            {/* Order Status */}
+            {/* Order Status Breakdown */}
             <div className="bg-white rounded-md shadow-sm border border-gray-100 p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">{t.dashboard.orderStatus}</h2>
-              <div className="h-64 flex items-center justify-center text-gray-400">
-                <p>{t.dashboard.orderStatus}</p>
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Pending</span>
+                  <span className="px-2 py-1 text-xs font-medium bg-yellow-100 text-yellow-800 rounded-md">
+                    {orderBreakdown.pending}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Fulfilled</span>
+                  <span className="px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-md">
+                    {orderBreakdown.fulfilled}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Cancelled</span>
+                  <span className="px-2 py-1 text-xs font-medium bg-red-100 text-red-800 rounded-md">
+                    {orderBreakdown.cancelled}
+                  </span>
+                </div>
               </div>
             </div>
           </div>
@@ -146,7 +223,36 @@ export default function DashboardContent({ kpis, notifications = [] }: Dashboard
                 {t.dashboard.viewAll}
               </a>
             </div>
-            <p className="text-gray-500">{t.orders.noOrders}</p>
+            {recentOrders.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="min-w-full">
+                  <thead>
+                    <tr className="border-b border-gray-100">
+                      <th className="text-left text-xs font-medium text-gray-500 pb-2">Order ID</th>
+                      <th className="text-left text-xs font-medium text-gray-500 pb-2">Customer</th>
+                      <th className="text-left text-xs font-medium text-gray-500 pb-2">Amount</th>
+                      <th className="text-left text-xs font-medium text-gray-500 pb-2">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {recentOrders.map((order) => (
+                      <tr key={order.id} className="border-b border-gray-50 last:border-0">
+                        <td className="py-3 text-sm text-gray-900">#{order.id.slice(0, 8)}</td>
+                        <td className="py-3 text-sm text-gray-600">{order.customer_name || order.customer_email || 'N/A'}</td>
+                        <td className="py-3 text-sm font-medium text-gray-900">{t.common.currency}{order.total_amount?.toFixed(2) || '0.00'}</td>
+                        <td className="py-3">
+                          <span className={`px-2 py-1 text-xs font-medium rounded-md ${getStatusBadge(order.status)}`}>
+                            {order.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="text-gray-500">{t.orders.noOrders}</p>
+            )}
           </div>
         </div>
       </main>

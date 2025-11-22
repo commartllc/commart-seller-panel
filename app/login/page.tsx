@@ -51,7 +51,7 @@ export default function LoginPage() {
             priority
           />
           <h2 className="text-center text-3xl font-extrabold text-gray-900">
-            Commart Seller Panel
+            Seller Panel
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600">
             Sign in to manage your store
