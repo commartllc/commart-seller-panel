@@ -33,11 +33,17 @@ export default function FinancePage() {
       try {
         const res = await fetch('/api/payouts')
         const json = await res.json()
-        if (json.success) {
-          setFinanceData(json.data)
-        }
+        const data = json.data ?? { total_revenue: 0, pending: 0, paid: 0, history: [] }
+        const history = data.history ?? json.payouts ?? []
+        setFinanceData({
+          total_revenue: data.total_revenue ?? 0,
+          pending: data.pending ?? 0,
+          paid: data.paid ?? 0,
+          history: Array.isArray(history) ? history : []
+        })
       } catch (error) {
         console.error('Failed to fetch finance data:', error)
+        setFinanceData({ total_revenue: 0, pending: 0, paid: 0, history: [] })
       } finally {
         setLoading(false)
       }

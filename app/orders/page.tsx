@@ -32,11 +32,11 @@ export default function OrdersPage() {
     try {
       const res = await fetch('/api/orders')
       const json = await res.json()
-      if (json.success) {
-        setOrders(json.data || [])
-      }
+      const items = json.data ?? json.orders ?? []
+      setOrders(Array.isArray(items) ? items : [])
     } catch (error) {
       console.error('Failed to fetch orders:', error)
+      setOrders([])
     } finally {
       setLoading(false)
     }

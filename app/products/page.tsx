@@ -35,11 +35,11 @@ export default function ProductsPage() {
     try {
       const res = await fetch('/api/products')
       const json = await res.json()
-      if (json.success) {
-        setProducts(json.data || [])
-      }
+      const items = json.data ?? json.products ?? []
+      setProducts(Array.isArray(items) ? items : [])
     } catch (error) {
       console.error('Failed to fetch products:', error)
+      setProducts([])
     } finally {
       setLoading(false)
     }
