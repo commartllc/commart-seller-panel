@@ -34,8 +34,8 @@ export async function GET() {
   // Calculate KPIs from orders
   const orders = ordersData ?? []
   const total_revenue = orders.reduce((sum, o) => sum + Number(o.total_amount || 0), 0)
-  const total_fees = total_revenue * 0.30
-  const net_earnings = total_revenue - total_fees
+  const total_deductions = total_revenue * 0.30
+  const net_earned = total_revenue - total_deductions
 
   // Calculate payout totals
   const payouts = payoutsData ?? []
@@ -67,8 +67,8 @@ export async function GET() {
     data: {
       // Order-based KPIs
       total_revenue,
-      total_fees,
-      net_earnings,
+      total_deductions,
+      net_earned,
       // Payout-based data
       pending: pending_payout,
       paid: paid_payout,

@@ -24,8 +24,8 @@ interface NextPayout {
 
 interface FinanceData {
   total_revenue: number
-  total_fees: number
-  net_earnings: number
+  total_deductions: number
+  net_earned: number
   pending: number
   paid: number
   next_payout: NextPayout | null
@@ -54,8 +54,8 @@ export default function FinancePage() {
         const json = await res.json()
         const data = json.data ?? {
           total_revenue: 0,
-          total_fees: 0,
-          net_earnings: 0,
+          total_deductions: 0,
+          net_earned: 0,
           pending: 0,
           paid: 0,
           next_payout: null,
@@ -65,8 +65,8 @@ export default function FinancePage() {
         const historyArray = Array.isArray(history) ? history : []
         setFinanceData({
           total_revenue: data.total_revenue ?? 0,
-          total_fees: data.total_fees ?? 0,
-          net_earnings: data.net_earnings ?? 0,
+          total_deductions: data.total_deductions ?? 0,
+          net_earned: data.net_earned ?? 0,
           pending: data.pending ?? 0,
           paid: data.paid ?? 0,
           next_payout: data.next_payout ?? null,
@@ -82,8 +82,8 @@ export default function FinancePage() {
         console.error('Failed to fetch finance data:', error)
         setFinanceData({
           total_revenue: 0,
-          total_fees: 0,
-          net_earnings: 0,
+          total_deductions: 0,
+          net_earned: 0,
           pending: 0,
           paid: 0,
           next_payout: null,
@@ -150,31 +150,31 @@ export default function FinancePage() {
                   </div>
                 </div>
 
-                {/* Total Fees */}
+                {/* Total Deductions */}
                 <div className="bg-white rounded-md shadow-sm border border-gray-100 p-6">
                   <div className="flex items-center">
                     <div className="bg-red-50 p-3 rounded-md">
                       <Percent className="h-6 w-6 text-red-500" />
                     </div>
                     <div className="ml-4">
-                      <p className="text-sm font-medium text-gray-500">Total Fees (30%)</p>
+                      <p className="text-sm font-medium text-gray-500">Total Deductions</p>
                       <p className="text-2xl font-bold text-gray-900">
-                        {getCurrencySymbol(primaryCurrency)}{(financeData?.total_fees || 0).toLocaleString()}
+                        {getCurrencySymbol(primaryCurrency)}{(financeData?.total_deductions || 0).toLocaleString()}
                       </p>
                     </div>
                   </div>
                 </div>
 
-                {/* Net Earnings */}
+                {/* Net Earned */}
                 <div className="bg-white rounded-md shadow-sm border border-gray-100 p-6">
                   <div className="flex items-center">
                     <div className="bg-blue-50 p-3 rounded-md">
                       <TrendingUp className="h-6 w-6 text-blue-500" />
                     </div>
                     <div className="ml-4">
-                      <p className="text-sm font-medium text-gray-500">Net Earnings</p>
+                      <p className="text-sm font-medium text-gray-500">Net Earned</p>
                       <p className="text-2xl font-bold text-gray-900">
-                        {getCurrencySymbol(primaryCurrency)}{(financeData?.net_earnings || 0).toLocaleString()}
+                        {getCurrencySymbol(primaryCurrency)}{(financeData?.net_earned || 0).toLocaleString()}
                       </p>
                     </div>
                   </div>
